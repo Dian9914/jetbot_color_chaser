@@ -1,0 +1,4 @@
+string color
+velocity_cmd limits
+---
+bool status
