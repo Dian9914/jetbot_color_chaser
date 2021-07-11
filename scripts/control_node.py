@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # nodo encargado de actuar sobre la velocidad de cada rueda para convertirla en 
 # velocidad lineal y angular segun la lectura de un topic
 
@@ -17,6 +17,8 @@ class controller():
         # creamos las variables que extraeremos de la orden
         self.vel_lin=0
         self.vel_ang=0
+        # creamos un objeto tipo robot para manejar el jetbot
+        self.robot=Robot()
 
     def vel_control(self):
         # calculamos la velocidad de cada motor
@@ -30,7 +32,7 @@ class controller():
         self.act_vel_i=vel_i/max_vel
         
         #actuamos sobre el robot
-        robot.set_motors(self.act_vel_i,self.act_vel_d)
+        self.robot.set_motors(self.act_vel_i,self.act_vel_d)
 
         return True
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import time
 from Adafruit_MotorHAT import Adafruit_MotorHAT
 
@@ -16,7 +16,6 @@ class Motor():
         else:
             self._ina = 2
             self._inb = 3
-        atexit.register(self._release)
         
     def calibrate(self, alpha, beta, gamma):
         self.alpha = alpha
@@ -53,7 +52,7 @@ class Motor():
         self._driver._pwm.setPWM(self._inb,0,0)
 
 
-class Robot(SingletonConfigurable):   
+class Robot():   
     def __init__(self):
         self.motor_driver = Adafruit_MotorHAT(i2c_bus=1)
         self.left_motor = Motor(self.motor_driver, channel=1, alpha=0.76, beta=0.25, gamma=0.02)

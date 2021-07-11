@@ -27,8 +27,8 @@ class image_processing():
         """HAY QUE CAMBIAR EL THRESH VERDE Y AZUL"""
         self.low_thresh_blue = np.array([95, 100, 100])
         self.high_thresh_blue = np.array([130, 255, 255])
-        self.low_thresh_green = np.array([0, 0, 150])
-        self.high_thresh_green = np.array([50, 50, 255])
+        self.low_thresh_green = np.array([0, 0, 0])
+        self.high_thresh_green = np.array([0, 0, 0])
         
         # kernel a usar en los metodos morfologicos
         self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
