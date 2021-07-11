@@ -8,7 +8,7 @@ from std_msgs.msg import Float32
 from diff_chaser.msg import velocity_cmd
 
 #libreria para pilotar el jetbot
-from jetbot import Robot
+from custom_jetbot import Robot, Motor
 
 class controller():
     def __init__(self):
@@ -25,13 +25,12 @@ class controller():
         
         # normalizamos esta velocidad respecto a la velocidad maxima 
         # del jetbot
-        max_vel=2
+        max_vel=3
         self.act_vel_d=vel_d/max_vel
         self.act_vel_i=vel_i/max_vel
         
         #actuamos sobre el robot
-        robot.left(self.act_vel_i)
-        robot.right(self.act_vel_d)
+        robot.set_motors(self.act_vel_i,self.act_vel_d)
 
         return True
 

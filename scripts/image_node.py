@@ -22,12 +22,16 @@ import simplecamera
 class image_processing():
     def __init__(self):
         #definicion de los thresholds para la deteccion de colores
-        self.low_thresh_red = np.array([150, 0, 0])
-        self.high_thresh_red = np.array([255, 50, 50])
-        self.low_thresh_green = np.array([0, 150, 0])
-        self.high_thresh_green = np.array([50, 255, 50])
-        self.low_thresh_blue = np.array([0, 0, 150])
-        self.high_thresh_blue = np.array([50, 50, 255])
+        self.low_thresh_red = np.array([160, 125, 125])
+        self.high_thresh_red = np.array([185, 255, 255])
+        """HAY QUE CAMBIAR EL THRESH VERDE Y AZUL"""
+        self.low_thresh_blue = np.array([95, 100, 100])
+        self.high_thresh_blue = np.array([130, 255, 255])
+        self.low_thresh_green = np.array([0, 0, 150])
+        self.high_thresh_green = np.array([50, 50, 255])
+        
+        # kernel a usar en los metodos morfologicos
+        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
 
         # objeto para poder convertir los mensajes image de ROS a un array 
         # legible por opencv
@@ -49,10 +53,12 @@ class image_processing():
 
     def findCenter(self, img, low_thresh, high_thresh):
         #metodo que localiza un objeto de un color dado dentro del threshold y calcula su centro geometrico y su area
-        #normalmente se filtraria previamente la imagen, pero en este caso no es necesario porque es una camara virtual
-
         # obtenemos una mascara que solo abarque los objetos del color de interes
         mask = cv2.inRange(img, low_thresh, high_thresh)
+        
+        # aplicamos metodos morfologicos para limpiar la mascara
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
 
         # Obtenemos los contornos de cada objeto visible en la mascara
         (cnts ,_) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
@@ -102,7 +108,13 @@ class image_processing():
             #usamos time para controlar el tiempo que se tarda entre ejecuciones de codigo
             start=time.time()
             
-            #buscamos objetos de los 3 colores que queremos tratar en este sistema
+            #buscamos objetos de los 3 colores que queremos tratar en este sistema.
+            # usaremos HSV para el thresholding
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            # primero hemos de filtrar la imagen para eliminar ruido en la medida de lo posible.
+            # Utilizamos un filtro de medianas
+            img=cv2.medianBlur(img,5)
+            # esta imagen filtrada pasa a ser procesada para cada color
             (c_r,area_r)=self.findCenter(img,self.low_thresh_red,self.high_thresh_red)
             (c_g,area_g)=self.findCenter(img,self.low_thresh_green,self.high_thresh_green)
             (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)

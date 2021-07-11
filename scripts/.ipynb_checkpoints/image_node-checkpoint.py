@@ -16,21 +16,29 @@ from cv_bridge import CvBridge
 # time para controlar el tiempo de procesamiento de imagen
 import time
 
+# libreria personal para manejar la picam instalada en el jetbot
+import simplecamera
+
 class image_processing():
     def __init__(self):
         #definicion de los thresholds para la deteccion de colores
-        self.low_thresh_red = np.array([150, 0, 0])
-        self.high_thresh_red = np.array([255, 50, 50])
-        self.low_thresh_green = np.array([0, 150, 0])
-        self.high_thresh_green = np.array([50, 255, 50])
-        self.low_thresh_blue = np.array([0, 0, 150])
-        self.high_thresh_blue = np.array([50, 50, 255])
+        self.low_thresh_red = np.array([160, 125, 125])
+        self.high_thresh_red = np.array([185, 255, 255])
+        """HAY QUE CAMBIAR EL THRESH VERDE Y AZUL"""
+        self.low_thresh_blue = np.array([95, 100, 100])
+        self.high_thresh_blue = np.array([130, 255, 255])
+        self.low_thresh_green = np.array([0, 0, 150])
+        self.high_thresh_green = np.array([50, 50, 255])
+        
+        # kernel a usar en los metodos morfologicos
+        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
 
         # objeto para poder convertir los mensajes image de ROS a un array 
         # legible por opencv
         self.bridge = CvBridge()
-
-        self.image_flag = False #bandera que marca la primera lectura de imagen
+        
+        # inicializamos la camara
+        self.cap = simplecamera.start_camera()
 
         # fragmento de codigo que lee el rosparam "enable_verbose", que se pasara en el fichero .launch
         if rospy.has_param('~enable_verbose'):
@@ -38,24 +46,19 @@ class image_processing():
         else:
             self.enable_verbose = True
 
-        self.img_sub=rospy.Subscriber('/robot/imagen',Image, self.read_img)
         self.img_pub=rospy.Publisher('/robot/cv_image',Image, queue_size=10)
         self.data_pub=rospy.Publisher('/diff/camera_data',camera_data, queue_size=10)
 
         self.procesed_data = camera_data()
 
-    def read_img(self, data):
-        self.image_data = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
-        #la imagen esta espejada, cosa que no nos interesa
-        self.image_data = cv2.flip(self.image_data, 1)
-        self.image_flag = True
-
     def findCenter(self, img, low_thresh, high_thresh):
         #metodo que localiza un objeto de un color dado dentro del threshold y calcula su centro geometrico y su area
-        #normalmente se filtraria previamente la imagen, pero en este caso no es necesario porque es una camara virtual
-
         # obtenemos una mascara que solo abarque los objetos del color de interes
         mask = cv2.inRange(img, low_thresh, high_thresh)
+        
+        # aplicamos metodos morfologicos para limpiar la mascara
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
 
         # Obtenemos los contornos de cada objeto visible en la mascara
         (cnts ,_) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
@@ -89,20 +92,29 @@ class image_processing():
     def process_data(self):
         #metodo que lee la imagen cada 0.2s, procesa las posiciones de los objetos y las publica en un topic
         rate=rospy.Rate(5)
-        #primero esperamos a tener senial de imagen
-        while not self.image_flag:
-            rospy.loginfo('IMAGE_NODE: Waiting for camera feed.')
-            rate.sleep()
 
         #una vez tenemos senial, empezamos a publicar la informacion tratada
         rospy.loginfo('IMAGE_NODE: Started publishing data.')
         while not rospy.is_shutdown():
+            #primero leemos la imagen
+            re, img = self.cap.read()
+            
+            #si la lectura de imagen falla, imprimimos un error y esperamos al siguiente ciclo
+            if not re:
+                rospy.logerror('IMAGE_NODE: Error getting image')
+                rate.sleep()
+                continue
+                
             #usamos time para controlar el tiempo que se tarda entre ejecuciones de codigo
             start=time.time()
-            #guardamos la imagen que queremos tratar para evitar que se nos sobreescriba con otra
-            #durante el proceso
-            img=self.image_data
-            #buscamos objetos de los 3 colores que queremos tratar en este sistema
+            
+            #buscamos objetos de los 3 colores que queremos tratar en este sistema.
+            # usaremos HSV para el thresholding
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            # primero hemos de filtrar la imagen para eliminar ruido en la medida de lo posible.
+            # Utilizamos un filtro de medianas
+            img=cv2.medianBlur(img,5)
+            # esta imagen filtrada pasa a ser procesada para cada color
             (c_r,area_r)=self.findCenter(img,self.low_thresh_red,self.high_thresh_red)
             (c_g,area_g)=self.findCenter(img,self.low_thresh_green,self.high_thresh_green)
             (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)
