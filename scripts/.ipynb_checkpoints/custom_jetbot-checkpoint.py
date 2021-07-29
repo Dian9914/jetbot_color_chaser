@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-import time
 from Adafruit_MotorHAT import Adafruit_MotorHAT
+import time
+import atexit
+
 
 class Motor():
     def __init__(self, driver, channel, alpha, beta, gamma):
@@ -16,6 +18,7 @@ class Motor():
         else:
             self._ina = 2
             self._inb = 3
+        atexit.register(self.release)
         
     def calibrate(self, alpha, beta, gamma):
         self.alpha = alpha
@@ -34,7 +37,7 @@ class Motor():
         else:
             mapped_value = int(255.0 * (self.alpha * value - self.beta))
         
-        speed = min(max(mapped_value, 0), 255)
+        speed = min(abs(mapped_value), 255)
         self._motor.setSpeed(speed)
         if mapped_value < 0:
             self._motor.run(Adafruit_MotorHAT.FORWARD)
@@ -56,7 +59,7 @@ class Robot():
     def __init__(self):
         self.motor_driver = Adafruit_MotorHAT(i2c_bus=1)
         self.left_motor = Motor(self.motor_driver, channel=1, alpha=0.76, beta=0.25, gamma=0.02)
-        self.right_motor = Motor(self.motor_driver, channel=1, alpha=0.75, beta=0.26, gamma=0.02)
+        self.right_motor = Motor(self.motor_driver, channel=2, alpha=0.75, beta=0.26, gamma=0.02)
         
     def set_motors(self, left_speed, right_speed):
         self.left_motor.write_speed(left_speed)

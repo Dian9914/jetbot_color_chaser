@@ -27,7 +27,7 @@ class controller():
         
         # normalizamos esta velocidad respecto a la velocidad maxima 
         # del jetbot
-        max_vel=3
+        max_vel=6
         self.act_vel_d=vel_d/max_vel
         self.act_vel_i=vel_i/max_vel
         
