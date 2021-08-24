@@ -26,7 +26,8 @@ class controller():
         vel_i = self.vel_lin - self.vel_ang/2 
         
         #actuamos sobre el robot. la propia libreria se encarga de saturar la orden en caso de ser necesario
-        self.robot.set_motors(self.act_vel_i,self.act_vel_d)
+        
+        self.robot.set_motors(vel_i,vel_d)
 
         return True
 

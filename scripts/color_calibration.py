@@ -15,7 +15,7 @@ win_img = cv2.namedWindow('Img')
 
 
 def nothing(useless):
-	pass
+    pass
 
 
 cv2.createTrackbar('LowH', 'Selector', 0, 255, nothing)
@@ -30,31 +30,39 @@ cv2.createTrackbar('LowV', 'Selector', 0, 255, nothing)
 
 cv2.createTrackbar('HighV', 'Selector', 0, 255, nothing)
 
+# kernel a usar en los metodos morfologicos
+kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(7,7))
+
 
 while True:
-	re, img = cap.read()
+    re, img = cap.read()
 
-	if not re:
-		print('Error with image capture.')
-		continue
+    if not re:
+        print('Error with image capture.')
+        continue
+        
+    img=cv2.medianBlur(img,5)
 
-	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-	lower_hsv = np.array([cv2.getTrackbarPos('LowH','Selector'),cv2.getTrackbarPos('LowS','Selector'),cv2.getTrackbarPos('LowV','Selector')])
-	higher_hsv = np.array([cv2.getTrackbarPos('HighH','Selector'),cv2.getTrackbarPos('HighS','Selector'),cv2.getTrackbarPos('HighV','Selector')])
+    lower_hsv = np.array([cv2.getTrackbarPos('LowH','Selector'),cv2.getTrackbarPos('LowS','Selector'),cv2.getTrackbarPos('LowV','Selector')])
+    higher_hsv = np.array([cv2.getTrackbarPos('HighH','Selector'),cv2.getTrackbarPos('HighS','Selector'),cv2.getTrackbarPos('HighV','Selector')])
 
-	mask = cv2.inRange(hsv,lower_hsv,higher_hsv)
+    mask = cv2.inRange(hsv,lower_hsv,higher_hsv)
+    # aplicamos metodos morfologicos para limpiar la mascara
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-	img = cv2.bitwise_and(img, img, mask=mask)
+    img = cv2.bitwise_and(img, img, mask=mask)
 
-	cv2.imshow('Img', img)
+    cv2.imshow('Img', img)
 
-	suma= np.sum(np.sum(mask))/255
-	print suma
+    suma= np.sum(np.sum(mask))/255
+    print suma
 
-	k = cv2.waitKey(100) & 0xFF
-	if k == 113 or k == 27:
-		break
+    k = cv2.waitKey(100) & 0xFF
+    if k == 113 or k == 27:
+        break
 
 ''' RED: 0-10, 100-185, 90-255
 GREEN: 70-85, 150-255, 75-175, 

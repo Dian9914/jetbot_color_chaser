@@ -25,14 +25,9 @@ class controller():
         vel_d = self.vel_lin + self.vel_ang/2
         vel_i = self.vel_lin - self.vel_ang/2 
         
-        # normalizamos esta velocidad respecto a la velocidad maxima 
-        # del jetbot
-        max_vel=6
-        self.act_vel_d=vel_d/max_vel
-        self.act_vel_i=vel_i/max_vel
+        #actuamos sobre el robot. la propia libreria se encarga de saturar la orden en caso de ser necesario
         
-        #actuamos sobre el robot
-        self.robot.set_motors(self.act_vel_i,self.act_vel_d)
+        self.robot.set_motors(vel_i,vel_d)
 
         return True
 

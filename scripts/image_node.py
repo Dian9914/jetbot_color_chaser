@@ -22,15 +22,15 @@ import simplecamera
 class image_processing():
     def __init__(self):
         #definicion de los thresholds para la deteccion de colores
-        self.low_thresh_red = np.array([0, 100, 90])
-        self.high_thresh_red = np.array([10, 185, 255])
-        self.low_thresh_blue = np.array([100, 85, 50])
-        self.high_thresh_blue = np.array([120, 175, 220])
-        self.low_thresh_green = np.array([70, 150, 75])
-        self.high_thresh_green = np.array([85, 255, 175])
+        self.low_thresh_red = np.array([0, 0, 0])
+        self.high_thresh_red = np.array([0, 0, 0])
+        self.low_thresh_blue = np.array([100, 110, 110])
+        self.high_thresh_blue = np.array([120, 255, 255])
+        self.low_thresh_green = np.array([0, 0, 0])
+        self.high_thresh_green = np.array([0, 0, 0])
         
         # kernel a usar en los metodos morfologicos
-        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
+        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(7,7))
 
         # objeto para poder convertir los mensajes image de ROS a un array 
         # legible por opencv

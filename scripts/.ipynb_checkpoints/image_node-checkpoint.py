@@ -22,16 +22,15 @@ import simplecamera
 class image_processing():
     def __init__(self):
         #definicion de los thresholds para la deteccion de colores
-        self.low_thresh_red = np.array([160, 125, 125])
-        self.high_thresh_red = np.array([185, 255, 255])
-        """HAY QUE CAMBIAR EL THRESH VERDE Y AZUL"""
-        self.low_thresh_blue = np.array([95, 100, 100])
-        self.high_thresh_blue = np.array([130, 255, 255])
+        self.low_thresh_red = np.array([0, 0, 0])
+        self.high_thresh_red = np.array([0, 0, 0])
+        self.low_thresh_blue = np.array([100, 110, 110])
+        self.high_thresh_blue = np.array([120, 255, 255])
         self.low_thresh_green = np.array([0, 0, 0])
         self.high_thresh_green = np.array([0, 0, 0])
         
         # kernel a usar en los metodos morfologicos
-        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))
+        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(7,7))
 
         # objeto para poder convertir los mensajes image de ROS a un array 
         # legible por opencv
@@ -108,27 +107,23 @@ class image_processing():
             #usamos time para controlar el tiempo que se tarda entre ejecuciones de codigo
             start=time.time()
             
-            #buscamos objetos de los 3 colores que queremos tratar en este sistema.
-            # usaremos HSV para el thresholding
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
             # primero hemos de filtrar la imagen para eliminar ruido en la medida de lo posible.
             # Utilizamos un filtro de medianas
             img=cv2.medianBlur(img,5)
+            #buscamos objetos de los 3 colores que queremos tratar en este sistema.
+            # usaremos HSV para el thresholding
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
             # esta imagen filtrada pasa a ser procesada para cada color
             (c_r,area_r)=self.findCenter(img,self.low_thresh_red,self.high_thresh_red)
             (c_g,area_g)=self.findCenter(img,self.low_thresh_green,self.high_thresh_green)
             (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)
-            #finalmente calculamos el tiempo empleado
-            end=time.time()
-            time_elapsed=end-start
+            
 
             #si el verbose esta activado, imprimira un resumen de lo obtenido
             if self.enable_verbose:
                 print('RED:\t center: %d \t area: %d'%(c_r,area_r))
                 print('GREEN:\t center: %d \t area: %d'%(c_g,area_g))
                 print('BLUE:\t center: %d \t area: %d'%(c_b,area_b))
-                print('Elapsed time: %f'%time_elapsed)
-                print('----------------')
 
             #construimos el mensaje que se comunicara al central node y lo publicamos
             self.procesed_data.red.center=int(c_r)
@@ -138,6 +133,8 @@ class image_processing():
             self.procesed_data.blue.center=int(c_b)
             self.procesed_data.blue.area=int(area_b)
             self.data_pub.publish(self.procesed_data)
+            
+            img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
 
             #anhadimos informacion al frame actual para publicarlo
             if c_r>=0:
@@ -157,6 +154,11 @@ class image_processing():
 
             #finalmente, suspendemos el codigo con sleep. Como indicamos al objeto rate que deseabamos
             #5Hz, se intentara mantener dormido durante el tiempo necesario para mantener la frecuencia
+	    #finalmente calculamos el tiempo empleado
+            end=time.time()
+            time_elapsed=end-start
+            print('Elapsed time: %f'%time_elapsed)
+            print('----------------')
             rate.sleep()
 
 
