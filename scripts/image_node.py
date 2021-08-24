@@ -22,12 +22,12 @@ import simplecamera
 class image_processing():
     def __init__(self):
         #definicion de los thresholds para la deteccion de colores
-        self.low_thresh_red = np.array([160, 50, 50])
-        self.high_thresh_red = np.array([185, 255, 255])
-        self.low_thresh_blue = np.array([95, 50, 50])
-        self.high_thresh_blue = np.array([130, 255, 255])
-        self.low_thresh_green = np.array([30, 50, 120])
-        self.high_thresh_green = np.array([90, 255, 255])
+        self.low_thresh_red = np.array([0, 100, 90])
+        self.high_thresh_red = np.array([10, 185, 255])
+        self.low_thresh_blue = np.array([100, 85, 50])
+        self.high_thresh_blue = np.array([120, 175, 220])
+        self.low_thresh_green = np.array([70, 150, 75])
+        self.high_thresh_green = np.array([85, 255, 175])
         
         # kernel a usar en los metodos morfologicos
         self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(5,5))

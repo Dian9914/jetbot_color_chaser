@@ -3,7 +3,6 @@ from Adafruit_MotorHAT import Adafruit_MotorHAT
 import time
 import atexit
 
-
 class Motor():
     def __init__(self, driver, channel, alpha, beta, gamma):
         self.alpha = alpha
