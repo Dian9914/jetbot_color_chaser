@@ -3,7 +3,7 @@
 import cv2
 from time import sleep
 import numpy as np
-# libreria personal para manejar la picam instalada en el jetbot
+# libreria para manejar la picam instalada en el jetbot
 import simplecamera
 
 # inicializamos la camara
