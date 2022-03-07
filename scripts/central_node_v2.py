@@ -15,32 +15,31 @@ from jetbot_color_chaser.srv import chase_conf, start_srv
 class central_node():
     def __init__(self):
         # parametros de seguimiento 
-        ### CAMBIAR A ROSPARAMS ###
-        self.max_lin = 0.1    #velocidad lineal maxima a la que se persiguen objetos
-        self.max_ang = 0.1    #velocidad angular maxima a la que se persiguen objetos
+        self.max_lin = rospy.get_param('max_lin_vel', 0.1)    #velocidad lineal maxima a la que se persiguen objetos
+        self.max_ang = rospy.get_param('max_ang_vel', 0.1)      #velocidad angular maxima a la que se persiguen objetos
         self.target_color = 'r'  #color que se persigue, de serie es rojo, todos los demas se evitan
 
         #ademas aniadimos una bandera para indicar cuando queremos que el control actue
         self.control_flag = False
         
         #umbrales para la construccion del mapa
-        self.theta_umb4=256
+        self.theta_umb4=rospy.get_param('camera_width',256)
         self.theta_umb0=round(self.theta_umb4/5)
         self.theta_umb1=self.theta_umb0*2
         self.theta_umb2=self.theta_umb0*3
         self.theta_umb3=self.theta_umb0*4
-        self.rho_umb0=500 #numero de pixeles que ocupa el objeto cuando esta lejos
-        self.rho_umb1=2000 #numero de pixeles que ocupa el objeto cuando esta a media distancia
-        self.rho_umb2=5000 #numero de pixeles que ocupa el objeto cuando esta cerca
+        self.rho_umb0=rospy.get_param('area_far',500) #numero de pixeles que ocupa el objeto cuando esta lejos
+        self.rho_umb1=rospy.get_param('area_mid',2000) #numero de pixeles que ocupa el objeto cuando esta a media distancia
+        self.rho_umb2=rospy.get_param('area_near',5000) #numero de pixeles que ocupa el objeto cuando esta cerca
         
         #margen que le damos a la zona en la que consideramos "aceptable" el obstaculo
-        self.control_margin=2000
+        self.control_margin=rospy.get_param('area_margin',2000)
 
         #para que el robot tenga "memoria", es necesario que recuerde las posiciones anteriores. Como 
         #situacion inicial supondremos que el objetivo esta en algun lugar a nuestra derecha muy cerca nuestra,
-        #de modo que el robot gire sobre sí mismo
+        #de modo que el robot gire sobre si mismo
         self.target_rho_ant = self.rho_umb2 
-        self.target_theta_ant = 280
+        self.target_theta_ant = self.theta_umb4 + 30
         
     def process_data(self, data):
         #primero leemos la informacion referente al color que deseamos seguir y la procesamos para enviar la senial de control
@@ -140,7 +139,7 @@ class central_node():
         # los parametros theta se discretizan definiendo unos umbrales segun la definicion de la camara, que en este caso va de 0 a 127
         #  En el caso de que no conozcamos la posicion concreta
         # lo guardaremos en las posiciones 0 o 6, correspondientes a las zonas virtuales de nuestro mapa que no podemos ver con la camara
-        t_theta_map = floor(self.target_theta/self.theta_umb0)+1
+        t_theta_map = int(floor(self.target_theta/self.theta_umb0)+1)
         if t_theta_map<0: t_theta_map=0
         if t_theta_map>6: t_theta_map=6
 
@@ -174,7 +173,7 @@ class central_node():
             elif self.obs_rho>=self.rho_umb1:
                 obs_rho_map=1
 
-            obs_theta_map = floor(self.obs_theta/self.theta_umb0)+1
+            obs_theta_map = int(floor(self.obs_theta/self.theta_umb0)+1)
             if obs_theta_map<2: obs_theta_map=2
             if obs_theta_map>4: obs_theta_map=4
 

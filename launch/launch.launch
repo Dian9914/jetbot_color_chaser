@@ -1,0 +1,14 @@
+<launch>
+  <!-- arranca todos los nodos del sistema -->
+  <!-- Arrancar el nodo de lectura de imagen -->
+  <node pkg="jetbot_color_chaser" type="image_node.py" name="image" output="screen" >
+        <rosparam param="enable_verbose">False</rosparam>
+  </node>
+  
+    <!-- Arrancar el nodo de actuacion sobre los motores -->
+  <node pkg="jetbot_color_chaser" type="control_node.py" name="control" output="screen" />
+  
+  <!-- Arrancar el nodo central -->
+  <node pkg="jetbot_color_chaser" type="central_node.py" name="central" output="screen" />
+
+</launch>

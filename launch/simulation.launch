@@ -1,14 +1,55 @@
 <launch>
-  <!-- arranca todos los nodos del sistema -->
+  <!-- Arranca simulador, rviz e interfaz de arbotix para guiar el robot -->
+  <!-- Supone que ya existe roscore -->
+  <!-- Uso:  -->
+  <!-- roslaunch mipkg start_coppelia.launch [<arg>:=<valor> ...] -->
+  <!-- Argumentos:
+         escena:   Fichero .ttt que contiene la escena; por defecto la que esta en
+		   simulador/escenas/default.ttt (hay que escribir el "pathname" completo)
+         sim_time: Si true, usar tiempo del simulador para ros (valor por defecto); 
+                   si false, usar tiempo del sistema
+         cfg_rviz: Fichero de configuracion de rviz. 
+                   Por defecto, el que esta en config/config_pioneer.rviz
+	 auto_fin: Si true (valor por defecto) cerrar simulador al acabar la simulacion
+		   si false, no cerrarlo (puede arrancarse de nuevo la simulacion)
+	 gui:	   Si true (valor por defecto) activar gui de teleoperacion
+		   si false, no activarlo
+  -->
+
+  <arg name="escena" default="$(find jetbot_color_chaser)/scenes/default_scene.ttt"/>
+  <arg name="sim_time" default="true" />
+  <arg name="cfg_rviz" default= "$(find jetbot_color_chaser)/config/jetbot_rviz.rviz" />
+  <arg name="auto_fin" default="true" />
+  <arg name="gui" default="true" />
+
+  <!-- Primero de todo, fijar la fuente del reloj -->
+
+  <param name="/use_sim_time" value="$(arg sim_time)" if="$(arg sim_time)" />
+  <rosparam param="/use_sim_time" command="delete" unless="$(arg sim_time)" />
+
+  
+  <!-- Dar valor al argumento parar en funcion  auto_fin -->
+
+  <arg name="parar" value="-q" if="$(arg auto_fin)"/>
+  <arg name="parar" value="" unless="$(arg auto_fin)"/>
+
+  <!-- Arrancar simulador con las opciones adecuadas -->
+    
+  <node name="start_coppelia" type="start_coppelia.sh" pkg="jetbot_color_chaser" args="$(arg parar) -s $(arg escena)" output="screen" />
+
+  <!-- Arrancar rviz con las opciones adecuadas -->
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg cfg_rviz)" output="screen"/>
+
   <!-- Arrancar el nodo de lectura de imagen -->
-  <node pkg="jetbot_color_chaser" type="image_node.py" name="image" output="screen" >
+  <node pkg="jetbot_color_chaser" type="image_node_sim.py" name="image" output="screen" >
         <rosparam param="enable_verbose">False</rosparam>
   </node>
   
     <!-- Arrancar el nodo de actuacion sobre los motores -->
-  <node pkg="jetbot_color_chaser" type="control_node.py" name="control" output="screen" />
+  <node pkg="jetbot_color_chaser" type="control_node_sim.py" name="control" output="screen" />
   
   <!-- Arrancar el nodo central -->
-  <node pkg="jetbot_color_chaser" type="central_node.py" name="central" output="screen" />
+  <node pkg="jetbot_color_chaser" type="central_node_v2.py" name="central" output="screen" />
 
 </launch>

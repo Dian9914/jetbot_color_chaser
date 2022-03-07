@@ -28,6 +28,8 @@ class image_processing():
         self.high_thresh_blue = np.array([120, 255, 255])
         self.low_thresh_green = np.array([0, 0, 0])
         self.high_thresh_green = np.array([0, 0, 0])
+
+        self.img_width = rospy.get_param('camera_width',256)
         
         # kernel a usar en los metodos morfologicos
         self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(7,7))
@@ -39,16 +41,32 @@ class image_processing():
         # inicializamos la camara
         self.cap = simplecamera.start_camera()
 
+        self.image_flag = False #bandera que marca la primera lectura de imagen
+
         # fragmento de codigo que lee el rosparam "enable_verbose", que se pasara en el fichero .launch
         if rospy.has_param('~enable_verbose'):
             self.enable_verbose = rospy.get_param('~enable_verbose')
         else:
             self.enable_verbose = True
 
+        self.img_sub=rospy.Subscriber('/robot/imagen',Image, self.read_img)
+
         self.img_pub=rospy.Publisher('/jetbot/cv_image',Image, queue_size=10)
         self.data_pub=rospy.Publisher('/jetbot/camera_data',camera_data, queue_size=10)
 
         self.procesed_data = camera_data()
+
+    def read_img(self, data):
+        self.image_data = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+        #la imagen esta espejada, cosa que no nos interesa
+        self.image_data = cv2.flip(self.image_data, 1)
+        # cambiamos el tamanio a uno mas pequenio para acelerar el proceso CAMBIAR A ALGO MAS ESTATICO
+        width = int(self.image_data.shape[1])
+        scale_factor = float(self.img_width)/float(width)
+        height = int(self.image_data.shape[0] * scale_factor)
+        print (scale_factor)
+        self.image_data = cv2.resize(self.image_data, (self.img_width,height), interpolation=cv2.INTER_AREA)
+        self.image_flag = True
 
     def findCenter(self, img, low_thresh, high_thresh):
         #metodo que localiza un objeto de un color dado dentro del threshold y calcula su centro geometrico y su area
@@ -92,17 +110,16 @@ class image_processing():
         #metodo que lee la imagen cada 0.2s, procesa las posiciones de los objetos y las publica en un topic
         rate=rospy.Rate(5)
 
+        #primero esperamos a tener senial de imagen
+        while not self.image_flag:
+            rospy.loginfo('IMAGE_NODE: Waiting for camera feed.')
+            rate.sleep()
+
         #una vez tenemos senial, empezamos a publicar la informacion tratada
         rospy.loginfo('IMAGE_NODE: Started publishing data.')
         while not rospy.is_shutdown():
             #primero leemos la imagen
-            re, img = self.cap.read()
-            
-            #si la lectura de imagen falla, imprimimos un error y esperamos al siguiente ciclo
-            if not re:
-                rospy.logerror('IMAGE_NODE: Error getting image')
-                rate.sleep()
-                continue
+            img=self.image_data
                 
             #usamos time para controlar el tiempo que se tarda entre ejecuciones de codigo
             start=time.time()
@@ -135,8 +152,11 @@ class image_processing():
             self.data_pub.publish(self.procesed_data)
             
             img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+
+        
+            img = cv2.flip(self.image_data, 1)
             height = img.shape[0]
-            mid_img = round(height/2)
+            mid_img = int(round(height/2))
             #anhadimos informacion al frame actual para publicarlo
             if c_r>=0:
                 img = cv2.circle(img, (c_r,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
