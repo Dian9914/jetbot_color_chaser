@@ -7,10 +7,10 @@ import rospy
 from math import floor
 
 #importamos los mensajes
-from diff_chaser.msg import camera_data, velocity_cmd
+from jetbot_color_chaser.msg import camera_data, velocity_cmd
 
 #importamos los servicio
-from diff_chaser.srv import chase_conf, start_srv
+from jetbot_color_chaser.srv import chase_conf, start_srv
 
 class central_node():
     def __init__(self):
@@ -262,19 +262,8 @@ class central_node():
 
         #finalmente, publicamos la accion de control debidamente saturada
         vel_action=velocity_cmd()
-        if lin_vel>self.max_lin:
-            vel_action.lineal=self.max_lin
-        elif lin_vel<-self.max_lin:
-            vel_action.lineal=-self.max_lin
-        else:
-            vel_action.lineal=lin_vel
-
-        if ang_vel>self.max_ang:
-            vel_action.angular=self.max_ang
-        elif ang_vel<-self.max_ang:
-            vel_action.angular=-self.max_ang
-        else:
-            vel_action.angular=ang_vel
+        vel_action.lineal=max(-self.max_lin,min(self.max_lin,lin_vel))
+        vel_action.angular=max(-self.max_ang,min(self.max_ang,ang_vel))
 
         #solo se publicara la accion de control si la bandera esta alzada, es decir
         #si le hemos comunicado al nodo por medio de un servicio que queremos que persiga al objeto
@@ -334,16 +323,16 @@ class central_node():
 
     def start_node(self):
         # creamos el servicio que permite cambiar los parametros de seguimiento
-        self.param_service=rospy.Service('/diff/config',chase_conf, self.change_params)
+        self.param_service=rospy.Service('/jetbot/config',chase_conf, self.change_params)
 
         # creamos el servicio que permite iniciar la accion
-        self.param_service=rospy.Service('/diff/start', start_srv, self.start_chase)
+        self.param_service=rospy.Service('/jetbot/start', start_srv, self.start_chase)
 
         # creamos el publisher para publicar la accion de control
-        self.action_pub=rospy.Publisher('/diff/cmd_vel', velocity_cmd, queue_size=10)
+        self.action_pub=rospy.Publisher('/jetbot/cmd_vel', velocity_cmd, queue_size=10)
 
         # nos suscribimos al topic con los datos extraidos de la camara
-        self.img_sub=rospy.Subscriber('/diff/camera_data', camera_data, self.process_data)
+        self.img_sub=rospy.Subscriber('/jetbot/camera_data', camera_data, self.process_data)
 
 if __name__ == "__main__":
     # creamos el nodo e inicializamos todo

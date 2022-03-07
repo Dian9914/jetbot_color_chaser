@@ -3,7 +3,7 @@
 # acerca de los objetos encontrados
 
 #importamos mensajes
-from diff_chaser.msg import camera_data, color_pose
+from jetbot_color_chaser.msg import camera_data, color_pose
 from sensor_msgs.msg import Image
 
 import rospy
@@ -46,7 +46,7 @@ class image_processing():
             self.enable_verbose = True
 
         self.img_pub=rospy.Publisher('/robot/cv_image',Image, queue_size=10)
-        self.data_pub=rospy.Publisher('/diff/camera_data',camera_data, queue_size=10)
+        self.data_pub=rospy.Publisher('/jetbot/camera_data',camera_data, queue_size=10)
 
         self.procesed_data = camera_data()
 
