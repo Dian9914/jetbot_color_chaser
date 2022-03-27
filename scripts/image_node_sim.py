@@ -55,14 +55,14 @@ class image_processing():
         self.procesed_data = camera_data()
 
     def read_img(self, data):
-        self.image_data = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
+        raw_image = self.bridge.imgmsg_to_cv2(data, desired_encoding='passthrough')
         #la imagen esta espejada, cosa que no nos interesa
-        self.image_data = cv2.flip(self.image_data, 1)
+        raw_image = cv2.flip(raw_image, 1)
         # cambiamos el tamanio a uno mas pequenio para acelerar el proceso CAMBIAR A ALGO MAS ESTATICO
-        width = int(self.image_data.shape[1])
+        width = int(raw_image.shape[1])
         scale_factor = float(self.img_width)/float(width)
-        height = int(self.image_data.shape[0] * scale_factor)
-        self.image_data = cv2.resize(self.image_data, (self.img_width,height), interpolation=cv2.INTER_AREA)
+        height = int(raw_image.shape[0] * scale_factor)
+        self.image_data = cv2.resize(raw_image, (self.img_width,height), interpolation=cv2.INTER_AREA)
         self.image_flag = True
 
     def findCenter(self, img, low_thresh, high_thresh):
@@ -133,11 +133,7 @@ class image_processing():
             (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)
             
 
-            #si el verbose esta activado, imprimira un resumen de lo obtenido
-            if self.enable_verbose:
-                print('RED:\t center: %d \t area: %d'%(c_r,area_r))
-                print('GREEN:\t center: %d \t area: %d'%(c_g,area_g))
-                print('BLUE:\t center: %d \t area: %d'%(c_b,area_b))
+            
 
             #construimos el mensaje que se comunicara al central node y lo publicamos
             self.procesed_data.red.center=int(c_r)
@@ -147,6 +143,7 @@ class image_processing():
             self.procesed_data.blue.center=int(c_b)
             self.procesed_data.blue.area=int(area_b)
             self.data_pub.publish(self.procesed_data)
+            
             
             img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
 
@@ -171,11 +168,15 @@ class image_processing():
 
             #finalmente, suspendemos el codigo con sleep. Como indicamos al objeto rate que deseabamos
             #5Hz, se intentara mantener dormido durante el tiempo necesario para mantener la frecuencia
-	    #finalmente calculamos el tiempo empleado
+	        #finalmente calculamos el tiempo empleado
             end=time.time()
             time_elapsed=end-start
-            print('Elapsed time: %f'%time_elapsed)
-            print('----------------')
+            #si el verbose esta activado, imprimira un resumen de lo obtenido
+            if self.enable_verbose:
+                print('IMAGE_NODE: Red location data:\t center: %d \t area: %d'%(c_r,area_r))
+                print('IMAGE_NODE: Green location data:\t center: %d \t area: %d'%(c_g,area_g))
+                print('IMAGE_NODE: Blue location data:\t center: %d \t area: %d'%(c_b,area_b))
+                print('IMAGE_NODE: Elapsed time: %f'%time_elapsed)
             rate.sleep()
 
 

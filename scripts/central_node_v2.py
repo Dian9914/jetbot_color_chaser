@@ -29,9 +29,9 @@ class central_node():
         self.theta_umb1=self.theta_umb0*2
         self.theta_umb2=self.theta_umb0*3
         self.theta_umb3=self.theta_umb0*4
-        self.rho_umb0=rospy.get_param('~area_far',default=500) #numero de pixeles que ocupa el objeto cuando esta lejos
-        self.rho_umb1=rospy.get_param('~area_mid',default=2000) #numero de pixeles que ocupa el objeto cuando esta a media distancia
-        self.rho_umb2=rospy.get_param('~area_near',default=5000) #numero de pixeles que ocupa el objeto cuando esta cerca
+        self.area_umb0=rospy.get_param('~area_far',default=500) #numero de pixeles que ocupa el objeto cuando esta lejos
+        self.area_umb1=rospy.get_param('~area_mid',default=2000) #numero de pixeles que ocupa el objeto cuando esta a media distancia
+        self.area_umb2=rospy.get_param('~area_near',default=5000) #numero de pixeles que ocupa el objeto cuando esta cerca
         
         #margen que le damos a la zona en la que consideramos "aceptable" el obstaculo
         self.control_margin=rospy.get_param('~area_margin',default=2000)
@@ -39,7 +39,7 @@ class central_node():
         #para que el robot tenga "memoria", es necesario que recuerde las posiciones anteriores. Como 
         #situacion inicial supondremos que el objetivo esta en algun lugar a nuestra derecha muy cerca nuestra,
         #de modo que el robot gire sobre si mismo
-        self.target_rho_ant = self.rho_umb2 
+        self.target_area_ant = self.area_umb2 
         self.target_theta_ant = self.theta_umb4 + 30
         
     def process_data(self, data):
@@ -71,33 +71,33 @@ class central_node():
         
         # dependiendo del parametro "target_color", nuestro objetivo y nuestros obstaculos seran distintos
         # realmente nos orientamos con coordenadas cartesianas y, como tal, definimos la posicion de los objetos
-        # con dos parametros, theta y rho.
+        # con dos parametros, theta y area.
         # theta se define como la posicion en x del centro geometrico del objeto, parametro que nos obtenemos directamente
         # de camera data
-        # rho lo obtenemos a partir del area que ocupa el objeto en la imagen. Suponemos que cuando un objeto ocupa 500 pixeles de nuestra
+        # area lo obtenemos a partir del area que ocupa el objeto en la imagen. Suponemos que cuando un objeto ocupa 500 pixeles de nuestra
         # imagen, este objeto esta lo mas cerca que consideramos aceptable, por lo que la distancia a la que esta un objeto de nosotros se
         # define como 500 - el area que ocupa. Cuando estemos muy cerca, esa distancia sera 0. Cuando estemos lejos, se acercara a 500
         if self.target_color == 'r':
             self.target_theta = red_center
-            self.target_rho = red_area
+            self.target_area = red_area
             self.obs1_theta = green_center
-            self.obs1_rho = green_area
+            self.obs1_area = green_area
             self.obs2_theta = blue_center
-            self.obs2_rho = blue_area
+            self.obs2_area = blue_area
         elif self.target_color == 'g':
             self.target_theta = green_center
-            self.target_rho = green_area
+            self.target_area = green_area
             self.obs1_theta = red_center
-            self.obs1_rho = red_area
+            self.obs1_area = red_area
             self.obs2_theta = blue_center
-            self.obs2_rho = blue_area
+            self.obs2_area = blue_area
         elif self.target_color == 'b':
             self.target_theta = blue_center
-            self.target_rho = blue_area
+            self.target_area = blue_area
             self.obs1_theta = green_center
-            self.obs1_rho = green_area
+            self.obs1_area = green_area
             self.obs2_theta = red_center
-            self.obs2_rho = red_area
+            self.obs2_area = red_area
 
         # una vez tenemos la informacion, comenzamos el control
         # si hay algun obstaculo en nuestro encuadre debemos tenerlo en cuenta para decidir la trayectoria.
@@ -134,7 +134,7 @@ class central_node():
                 self.target_theta=-30
             else:
                 self.target_theta=self.theta_umb4+30
-            self.target_rho=self.target_rho_ant
+            self.target_area=self.target_area_ant
 
         #primero registramos la posicion de nuestro objetivo en el mapa local.
         # los parametros theta se discretizan definiendo unos umbrales segun la definicion de la camara, que en este caso va de 0 a 127
@@ -145,57 +145,59 @@ class central_node():
         if t_theta_map>6: t_theta_map=6
 
         #tambien discretizamos las distancias entre 3 umbrales. Esta es una division no lineal, por lo que debemos usar if-else
-        if self.target_rho<self.rho_umb0:
-            t_rho_map=4  #objeto pequeno, ergo esta lejos
-        elif self.target_rho>=self.rho_umb0 and self.target_rho<self.rho_umb1:
-            t_rho_map=3
-        elif self.target_rho>=self.rho_umb1 and self.target_rho<self.rho_umb2:
-            t_rho_map=2  
-        elif self.target_rho>=self.rho_umb2:
-            t_rho_map=1  #objeto grande, ergo esta cerca
+        if self.target_area<self.area_umb0:
+            t_area_map=4  #objeto pequeno, ergo esta lejos
+        elif self.target_area>=self.area_umb0 and self.target_area<self.area_umb1:
+            t_area_map=3
+        elif self.target_area>=self.area_umb1 and self.target_area<self.area_umb2:
+            t_area_map=2  
+        elif self.target_area>=self.area_umb2:
+            t_area_map=1  #objeto grande, ergo esta cerca
 
         # ahora hemos de comprobar si existe un obstaculo y que ademas es el obstaculo mas cercano
-        if (self.obs1_rho<self.target_rho) and (self.obs1_theta!=-1) and (self.obs1_rho<self.obs2_rho):
-            self.obs_rho=self.obs1_rho
+        if (self.obs1_area>self.target_area) and (self.obs1_theta!=-1) and (self.obs1_area>self.obs2_area):
+            self.obs_area=self.obs1_area
             self.obs_theta=self.obs1_theta
-        elif (self.obs2_rho<self.target_rho) and (self.obs2_theta!=-1) and (self.obs1_rho>self.obs2_rho):
-            self.obs_rho=self.obs1_rho
-            self.obs_theta=self.obs1_theta
+        elif (self.obs2_area>self.target_area) and (self.obs2_theta!=-1) and (self.obs1_area<self.obs2_area):
+            self.obs_area=self.obs2_area
+            self.obs_theta=self.obs2_theta
         else:
-            self.obs_rho=-1
+            self.obs_area=-1
             self.obs_theta=-1
 
-        if self.obs_rho!=-1:
+        if self.obs_area!=-1:
             #si hay un obstaculo, hemos de esquivarlo. Para esquivarlo, primero lo registramos en nuestro mapa local
-            if self.obs_rho<self.rho_umb0:
-                obs_rho_map=3
-            elif self.obs_rho>=self.rho_umb0 and self.obs_rho<self.rho_umb1:
-                obs_rho_map=2
-            elif self.obs_rho>=self.rho_umb1:
-                obs_rho_map=1
+            if self.obs_area<self.area_umb0:
+                obs_area_map=4
+            elif self.obs_area>=self.area_umb0 and self.obs_area<self.area_umb1:
+                obs_area_map=3
+            elif self.obs_area>=self.area_umb1 and self.obs_area<self.area_umb2:
+                obs_area_map=2
+            elif self.obs_area>=self.area_umb2:
+                obs_area_map=1
 
             obs_theta_map = int(floor(self.obs_theta/self.theta_umb0)+1)
-            if obs_theta_map<2: obs_theta_map=2
-            if obs_theta_map>4: obs_theta_map=4
+            if obs_theta_map<2: obs_theta_map=1
+            if obs_theta_map>4: obs_theta_map=5
 
             #para asegurarnos de esquivar bien el obstaculo, suponemos los obstaculos mas anchos de lo que son en realidad
-            self.map[obs_rho_map][obs_theta_map]=1
-            self.map[obs_rho_map][obs_theta_map-1]=1
-            self.map[obs_rho_map][obs_theta_map+1]=1
-            if obs_rho_map==1: #si esta en el centro lo consideramos aun mas ancho
-                self.map[obs_rho_map][obs_theta_map-2]=1
-                self.map[obs_rho_map][obs_theta_map+2]=1
+            self.map[obs_area_map][obs_theta_map]=1
+            self.map[obs_area_map][obs_theta_map-1]=1
+            self.map[obs_area_map][obs_theta_map+1]=1
+            if obs_theta_map==3 or obs_area_map==1: #si esta en el centro o cerca lo consideramos aun mas ancho
+                self.map[obs_area_map][obs_theta_map-2]=1
+                self.map[obs_area_map][obs_theta_map+2]=1
         
 
-        self.map[t_rho_map][t_theta_map]=2 #marcamos el objetivo en el mapa
+        self.map[t_area_map][t_theta_map]=2 #marcamos el objetivo en el mapa
         self.map[0]=[0,0,0,0,0,0,0]
         start = (0, 3) #el punto 0,3 se supone que es donde esta el robot situado en nuestro mapa local
-        end = (t_rho_map, t_theta_map)  #este punto es donde esta el objetivo
+        end = (t_area_map, t_theta_map)  #este punto es donde esta el objetivo
 
-        if self.obs_theta==-1 and self.obs_rho>self.target_rho:
+        if self.obs_theta==-1 and self.obs_area>self.target_area:
             #si no se encuentran obstaculos en el camino, directaemente seguimos al objetivo, sin necesidad de llamar al planificador
             ref_pos=self.target_theta
-            ref_dist=self.target_rho
+            ref_dist=self.target_area
         else:
             #si hay obstaculos o ninguno nos bloquea completamente el camino, planeamos el camino para esquivar
             #para ello hacemos una sencilla serie de comparaciones
@@ -229,28 +231,26 @@ class central_node():
                 ref_dist=0
             else:
                 #si la via esta libre, seguimos avanzando hacia el objetivo
-                ref_dist=self.target_rho
+                ref_dist=self.target_area
                 
             # el error en posicion se calcula teniendo en cuenta que el robot debe mover el centro de su vision a donde la referencia le marca
             err_pos=(self.theta_umb4/2)-ref_pos
 
         # finalmente almacenamos los valores obtenidos del objetivo para usarlos en la siguiente iteracion
         self.target_theta_ant=self.target_theta
-        self.target_rho_ant=self.target_rho
+        self.target_area_ant=self.target_area
         
         # a continuacion hemos de calcular la accion del control
         
         # si el objeto esta a una distancia dentro de un cierto rango, el robot se para.
-        print(ref_dist)
-        print(self.rho_umb2-self.control_margin)
-        print(self.rho_umb2+self.control_margin)
-        if ref_dist >= self.rho_umb2-self.control_margin and ref_dist <= self.rho_umb2+self.control_margin:
+        print('ref_dist',ref_dist)
+        if ref_dist >= self.area_umb2-self.control_margin and ref_dist <= self.area_umb2+self.control_margin or ref_dist==0:
             err_dist=0
             lin_vel=0
-            print('Objetivo cerca')
+            print('Objetivo cerca o bloqueado')
         else:
-            lin_vel=((self.rho_umb2-ref_dist)/ref_dist)*self.max_lin
-            print('objetivo lejos',(self.rho_umb2-ref_dist), ((self.rho_umb2-ref_dist)/ref_dist))
+            lin_vel=((self.area_umb2-ref_dist)/ref_dist)
+            print('objetivo lejos',(self.area_umb2-ref_dist), ((self.area_umb2-ref_dist)/ref_dist))
 
         if abs(err_pos)<(self.theta_umb4/32):
             print('objetivo centrado')
@@ -262,8 +262,11 @@ class central_node():
             print('objetivo a la izquierda')
             ang_vel=err_pos/(self.theta_umb4/2)*self.max_ang
 
-        print(ref_dist)
-        print(self.map)
+        print(self.map[0])
+        print(self.map[1])
+        print(self.map[2])
+        print(self.map[3])
+        print(self.map[4])
                 
 
         #finalmente, publicamos la accion de control debidamente saturada
