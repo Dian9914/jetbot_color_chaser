@@ -12,18 +12,17 @@ from custom_jetbot import Robot, Motor
 
 class controller():
     def __init__(self):
+        # inicializamos parametros
+        self.max_vel=rospy.get_param('~max_wheel_vel',default=1)
         # nos suscribimos al topic que ordenara la velocidad
         self.img_sub=rospy.Subscriber('/jetbot/cmd_vel', velocity_cmd, self.get_cmd)
-        # creamos las variables que extraeremos de la orden
-        self.vel_lin=0
-        self.vel_ang=0
         # creamos un objeto tipo robot para manejar el jetbot
         self.robot=Robot()
 
-    def vel_control(self):
+    def vel_control(self, vel_lin, vel_ang):
         # calculamos la velocidad de cada motor
-        vel_d = self.vel_lin + self.vel_ang/2
-        vel_i = self.vel_lin - self.vel_ang/2 
+        vel_d = vel_lin + vel_ang/2
+        vel_i = vel_lin - vel_ang/2 
         
         #actuamos sobre el robot. la propia libreria se encarga de saturar la orden en caso de ser necesario
         
@@ -32,10 +31,12 @@ class controller():
         return True
 
     def get_cmd(self, data):
-        #guardamos en variables locales los datos
-        self.vel_lin=data.lineal
-        self.vel_ang=data.angular
-        self.vel_control()
+        # calculamos la velocidad de cada motor
+        vel_d = data.lineal + data.angular/2
+        vel_i = data.lineal - data.angular/2 
+        
+        #actuamos sobre el robot. la propia libreria se encarga de saturar la orden en caso de ser necesario
+        self.robot.set_motors(vel_i,vel_d)
 
 if __name__ == "__main__":
     rospy.init_node('control_node')

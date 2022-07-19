@@ -15,7 +15,7 @@ import simplecamera
 def parse_args():
     parser = argparse.ArgumentParser(description='Useful script used to calibrate the color detection.')
     parser.add_argument('--mode', default= 'opencv', help ='Switch between "jetbot" mode or "opencv" mode to access the camera.')
-    parser.add_argument('--out_dir', default='./output/', help='Directory to save the output')
+    parser.add_argument('--out_dir', default='./config/', help='Directory to save the output')
     parser.add_argument('--post_proc', default=False, help='Post process the image ussing filters. This is deprecated because the pipeline already preprocess the image.')
     args = parser.parse_args()
     return args
@@ -89,9 +89,8 @@ def main():
     cv2.createTrackbar('LowV', 'Selector', 0, 255, nothing)
     cv2.createTrackbar('HighV', 'Selector', 255, 255, nothing)
 
-    if args.post_proc:
-        # kernel a usar en los metodos morfologicos
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(7,7))
+    # kernel a usar en los metodos morfologicos usados para limpiar la mascara usada
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(7,7))
 
     while True:
         # tomamos lectura de la camara. "re" es una bandera que nos indica si hemos obtenido la imagen correctamente o no. Si "re" es False, 
@@ -143,10 +142,9 @@ def main():
 
         mask = segmentate(hsv,lower_hsv,higher_hsv)
 
-        if args.post_proc:
-            # aplicamos metodos morfologicos para limpiar la mascara
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        # aplicamos metodos morfologicos para limpiar la mascara
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
 
         # mostramos la imagen capturada en la ventana de "Img"
