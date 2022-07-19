@@ -1,0 +1,1 @@
+{"red": {"lower_hsv": [158, 97, 70], "higher_hsv": [180, 255, 255]}, "blue": {"lower_hsv": [105, 149, 45], "higher_hsv": [118, 255, 209]}, "green": {"lower_hsv": [52, 80, 59], "higher_hsv": [66, 175, 224]}, "near_area": 6994.0, "mid_area": 1007.0, "far_area": 185.0}
