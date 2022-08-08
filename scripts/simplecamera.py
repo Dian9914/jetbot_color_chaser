@@ -53,12 +53,5 @@ def start_camera(capture_width=320, capture_height=240, framerate=20, pre_proc=T
     handle = cv2.VideoCapture(gstreamer_pipeline(capture_width=capture_width, capture_height=capture_height, framerate=framerate, pre_proc=pre_proc), cv2.CAP_GSTREAMER)
     return handle
 
-def save_snapshot():
-    cap=start_camera()
-    re, img = cap.read()
-    file_path = 'snapshots/' + 'prueba' + '.jpg'
-    with open(file_path, 'wb') as f:
-        f.write(img)
-
 if __name__ == "__main__":
-    save_snapshot()
+    pass
