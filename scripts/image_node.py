@@ -35,7 +35,7 @@ class image_processing():
 
         rospy.loginfo('IMAGE_NODE: Reading config file.')
         # leemos el archivo de configuracion para los thresholds
-        with open('config/parameters.json', 'r') as f:
+        with open('/home/jetbot/catkin_ws/src/jetbot_color_chaser/config/parameters.json', 'r') as f:
             data=json.load(f)
         rospy.loginfo('IMAGE_NODE: Config file successfully read.')
         

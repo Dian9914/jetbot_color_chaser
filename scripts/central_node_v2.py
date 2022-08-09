@@ -24,14 +24,17 @@ class central_node():
         self.control_flag = False
         
         #umbrales para la construccion del mapa
+        with open('/home/jetbot/catkin_ws/src/jetbot_color_chaser/config/parameters.json', 'r') as f:
+            data=json.load(f)
+        rospy.loginfo('IMAGE_NODE: Config file successfully read.')
         self.theta_umb4=rospy.get_param('~camera_width',default=256)
         self.theta_umb0=round(self.theta_umb4/5)
         self.theta_umb1=self.theta_umb0*2
         self.theta_umb2=self.theta_umb0*3
         self.theta_umb3=self.theta_umb0*4
-        self.area_umb0=rospy.get_param('~area_far',default=500) #numero de pixeles que ocupa el objeto cuando esta lejos
-        self.area_umb1=rospy.get_param('~area_mid',default=2000) #numero de pixeles que ocupa el objeto cuando esta a media distancia
-        self.area_umb2=rospy.get_param('~area_near',default=5000) #numero de pixeles que ocupa el objeto cuando esta cerca
+        self.area_umb0=data["far_area"] #numero de pixeles que ocupa el objeto cuando esta lejos
+        self.area_umb1=data["mid_area"] #numero de pixeles que ocupa el objeto cuando esta a media distancia
+        self.area_umb2=data["near_area"] #numero de pixeles que ocupa el objeto cuando esta cerca
         
         #margen que le damos a la zona en la que consideramos "aceptable" el obstaculo
         self.control_margin=rospy.get_param('~area_margin',default=2000)
@@ -243,7 +246,6 @@ class central_node():
         # a continuacion hemos de calcular la accion del control
         
         # si el objeto esta a una distancia dentro de un cierto rango, el robot se para.
-        print('ref_dist',ref_dist)
         if ref_dist >= self.area_umb2-self.control_margin and ref_dist <= self.area_umb2+self.control_margin or ref_dist==0:
             err_dist=0
             lin_vel=0
@@ -256,10 +258,10 @@ class central_node():
             print('objetivo centrado')
             ang_vel=0
         elif err_pos>0:
-            print('objetivo a la derecha')
+            print('objetivo a la izquierda')
             ang_vel=err_pos/(self.theta_umb4/2)*self.max_ang
         elif err_pos<0:
-            print('objetivo a la izquierda')
+            print('objetivo a la derecha')
             ang_vel=err_pos/(self.theta_umb4/2)*self.max_ang
 
         print(self.map[0])
@@ -274,7 +276,6 @@ class central_node():
         vel_action.lineal=max(-self.max_lin,min(self.max_lin,lin_vel))
         vel_action.angular=max(-self.max_ang,min(self.max_ang,ang_vel))
 
-        print(lin_vel)
         #solo se publicara la accion de control si la bandera esta alzada, es decir
         #si le hemos comunicado al nodo por medio de un servicio que queremos que persiga al objeto
         #si no, simplemente se detiene

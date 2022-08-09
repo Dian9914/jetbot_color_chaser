@@ -2,7 +2,10 @@ import rospy
 import simplecamera
 import cv2
 import argparse
+import time
 
+#cargamos las librerias para manejar el mando
+import Gamepad
 
 #importamos los mensajes
 from jetbot_color_chaser.msg import camera_data, velocity_cmd
@@ -10,7 +13,7 @@ from jetbot_color_chaser.msg import camera_data, velocity_cmd
 # funcion para leer los argumentos que se le dan por consola a python
 def parse_args():
     parser = argparse.ArgumentParser(description='Useful script used to calibrate the color detection.')
-    parser.add_argument('--streaming', default= 'gstreamer', help ='Switch between "gstreamer" or "opencv" for the visualization of the camera.')
+    parser.add_argument('--control', default= 'gamepad', help ='Switch between "gamepad" or "keyboard" for the teleoperation control.')
     args = parser.parse_args()
     return args
 
@@ -18,67 +21,58 @@ def main():
     # guardamos los argumentos en la variable arg
     args = parse_args()
 
+    if args.control=="gamepad":
+        # Gamepad settings
+        gamepadType = Gamepad.Gamepad
+        button = 2
+        joystickSpeed = 2
+        joystickSteering = 3
+        pollInterval = 0.1
+
+        # esperamos a que el gamepad se conecte y este disponible
+        if not Gamepad.available():
+            print('Please connect your gamepad...')
+            while not Gamepad.available():
+                time.sleep(1.0)
+        gamepad = gamepadType()
+        print('Gamepad connected')
+
+        # Inicializamos las variables relacionadas con el gamepad
+        global running, lin_vel, ang_vel
+        running = True
+        lin_vel = 0.0
+        ang_vel = 0.0
+
+        # Creamos un callback que se ejecute cada vez que se pulse el boton
+        # En este caso el callback hara que el robot gire sobre sí mismo
+        def buttonPressed():
+            lin_vel = 0.0
+            ang_vel = 0.8
+
+
+        # Inicia el hilo encargado de actualizar los valores del gamepad
+        gamepad.startBackgroundUpdates()
+
+        # Registramos el callback del boton
+        gamepad.addButtonPressedHandler(button, buttonPressed)
+
+
+
     # inicializamos el nodo de ROS
     rospy.init_node('teleoperation_node')
 
     # creamos el publisher para publicar la accion de control
     action_pub=rospy.Publisher('/jetbot/cmd_vel', velocity_cmd, queue_size=10)
 
-    if args.streaming=='opencv':
-        # creamos la ventana en la que se mostrara lo que ve el robot
-        win_camera = cv2.namedWindow('Camera_Image')
-    else:
-        # creamos la pipeline de gstreamer que usaremos para streamear el video
-        out_send = cv2.VideoWriter("appsrc ! videoconvert ! x264enc tune=zerolatency bitrate=500 speed-preset=superfast ! rtph264pay ! udpsink host=192.168.73.255 port=5000",cv2.CAP_GSTREAMER,0, 5, (320,240), True)
-        if not out_send.isOpened():
-            print('VideoWriter not opened')
-            exit(0)
-
-    # creamos el habdler de la camara
-    cap = simplecamera.start_camera(pre_proc=False)
-
-    #variable que cuenta cuantos frames han fallado de forma sucesiva, de modo que si fallan 20 frames seguidos se cierre el programa y se libere el handler de la camara
-    fail_counter = 0
-
     # en un bucle while se iran leyendo las instrucciones por teclado o por gamepad y se ira mostrando la imagen que ve la camara del jetbot
     while not rospy.is_shutdown():
         #reseteamos la accion de control
-        lin_vel = 0
-        ang_vel = 0
+        lin_vel = 0.0
+        ang_vel = 0.0
 
-        #capturamos la imagen
-        re, img = cap.read()
-
-        #si la lectura de imagen falla, imprimimos un error y esperamos al siguiente ciclo
-        if not re:
-            fail_counter = fail_counter + 1
-            if fail_counter>=20: break
-            rospy.logerror('IMAGE_NODE: Error getting image')
-            rate.sleep()
-            continue
-        fail_counter = 0
-
-        if args.streaming=='opencv':
-            # mostramos la imagen
-            cv2.imshow('Camera_Image', img)
-        else:
-            #mandamos la imagen por la pipeline de gstreamer
-            out_send.write(img)
-
-    
-        # finalmente, esperamos 10 milisegundos para esperar un input del teclado. Segun la tecla pulsada se tomaran directas acciones
-        k = cv2.waitKey(10) & 0xFF
-
-        if k == 113 or k == 27: #esc o q: termina la ejecucion del programa y lo cierra
-            break
-        if k == ord('w'): #w: hacia delante
-            lin_vel=lin_vel+0.25
-        if k == ord('s'): #s: hacia atras
-            lin_vel=lin_vel-0.25
-        if k == ord('a'): #a: hacia la izquierda
-            ang_vel=ang_vel+0.25
-        if k == ord('d'): #d: hacia la derecha
-            ang_vel=ang_vel-0.25
+        if args.control=="gamepad":
+            lin_vel = -gamepad.axis(joystickSpeed)*0.5
+            ang_vel = gamepad.axis(joystickSteering)*0.3
 
         #finalmente, publicamos la accion de control
         vel_action=velocity_cmd()
@@ -86,8 +80,7 @@ def main():
         vel_action.angular=ang_vel
         action_pub.publish(vel_action)
 
-    cap.release()
-    out_send.release()
+    gamepad.disconnect()
 
 if __name__ == '__main__':
     main()
