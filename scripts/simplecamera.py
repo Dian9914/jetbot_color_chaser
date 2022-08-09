@@ -13,7 +13,7 @@ import cv2
 # display_width and display_height determine the size of the window on the screen
 
 
-def gstreamer_pipeline(capture_width=320, capture_height=240, framerate=20, pre_proc=True):
+def gstreamer_pipeline(capture_width=320, capture_height=240, framerate=30, pre_proc=True):
     if pre_proc:
         return (
             "v4l2src device=/dev/video0 ! "
@@ -48,7 +48,7 @@ def gstreamer_pipeline(capture_width=320, capture_height=240, framerate=20, pre_
         )
 
         
-def start_camera(capture_width=320, capture_height=240, framerate=20, pre_proc=True):
+def start_camera(capture_width=320, capture_height=240, framerate=30, pre_proc=True):
     # handle.release()
     handle = cv2.VideoCapture(gstreamer_pipeline(capture_width=capture_width, capture_height=capture_height, framerate=framerate, pre_proc=pre_proc), cv2.CAP_GSTREAMER)
     return handle
