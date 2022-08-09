@@ -1,57 +1,48 @@
-# MIT License
-# Copyright (c) 2019 JetsonHacks
-# See license
-# Using a CSI camera (such as the Raspberry Pi Version 2) connected to a
-# NVIDIA Jetson Nano Developer Kit using OpenCV
-# Drivers for the camera and OpenCV are included in the base image
-
 import cv2
 
 # gstreamer_pipeline returns a GStreamer pipeline for capturing from the CSI camera
-# Defaults to 1280x720 @ 60fps
-# Flip the image by setting the flip_method (most common values: 0 and 2)
-# display_width and display_height determine the size of the window on the screen
+# Defaults to 320x240 @ 30fps
 
 
-def gstreamer_pipeline(
-    capture_width=256,
-    capture_height=144,
-    display_width=256,
-    display_height=144,
-    framerate=12,
-    flip_method=0,
-):
-    return (
-        "nvarguscamerasrc ! "
-        "video/x-raw(memory:NVMM), "
-        "width=(int)%d, height=(int)%d, "
-        "format=(string)NV12, framerate=(fraction)%d/1 ! "
-        "nvvidconv flip-method=%d ! "
-        "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
-        "videoconvert ! "
-        "video/x-raw, format=(string)BGR ! appsink"
-        % (
-            capture_width,
-            capture_height,
-            framerate,
-            flip_method,
-            display_width,
-            display_height,
+def gstreamer_pipeline(capture_width=320, capture_height=240, framerate=30, pre_proc=True):
+    if pre_proc:
+        return (
+            "v4l2src device=/dev/video0 ! "
+            "video/x-raw, "
+            "width=(int)%d, height=(int)%d, "
+            "framerate=(fraction)%d/1 ! "
+            "videoconvert ! "
+            "videomedian filtersize=9 ! "
+            "videoconvert ! "
+            "gaussianblur ! "
+            "videoconvert ! "
+            "video/x-raw, format=(string)BGR ! appsink sync=false drop=true"
+            % (
+                capture_width,
+                capture_height,
+                framerate
+            )
         )
-    )
+    else: 
+        return (
+            "v4l2src device=/dev/video0 ! "
+            "video/x-raw, "
+            "width=(int)%d, height=(int)%d, "
+            "framerate=(fraction)%d/1 ! "
+            "videoconvert ! "
+            "video/x-raw, format=(string)BGR ! appsink sync=false drop=true"
+            % (
+                capture_width,
+                capture_height,
+                framerate
+            )
+        )
 
         
-def start_camera():
+def start_camera(capture_width=320, capture_height=240, framerate=30, pre_proc=True):
     # handle.release()
-    handle = cv2.VideoCapture(gstreamer_pipeline(flip_method=2), cv2.CAP_GSTREAMER)
+    handle = cv2.VideoCapture(gstreamer_pipeline(capture_width=capture_width, capture_height=capture_height, framerate=framerate, pre_proc=pre_proc), cv2.CAP_GSTREAMER)
     return handle
 
-def save_snapshot():
-    cap=start_camera()
-    re, img = cap.read()
-    file_path = 'snapshots/' + 'prueba' + '.jpg'
-    with open(file_path, 'wb') as f:
-        f.write(img)
-
 if __name__ == "__main__":
-    save_snapshot()
+    pass

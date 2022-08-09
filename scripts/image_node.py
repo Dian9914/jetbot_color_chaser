@@ -20,20 +20,8 @@ import time
 # libreria para manejar la camara instalada en el jetbot
 import simplecamera
 
-# funcion para segmentar imagenes en casos en los que los thresholds tienen que partirse en dos
-def segmentate(hsv,lower_hsv,higher_hsv):
-    if higher_hsv[0] > 179:
-        mask1 = cv2.inRange(hsv,lower_hsv,np.array([179, higher_hsv[1], higher_hsv[2]]))
-        mask2 = cv2.inRange(hsv,np.array([0, lower_hsv[1], lower_hsv[2]]),np.array([higher_hsv[0]-179, higher_hsv[1], higher_hsv[2]]))
-        mask = cv2.bitwise_or(mask1,mask2)
-    else:
-        mask = cv2.inRange(hsv,lower_hsv,higher_hsv)
-
-    return mask
-
 class image_processing():
     def __init__(self):
-
         rospy.loginfo('IMAGE_NODE: Reading config file.')
         # ---lectura del archivo de configuracion---
         with open('/home/jetbot/catkin_ws/src/jetbot_color_chaser/config/parameters.json', 'r') as f:
@@ -74,46 +62,8 @@ class image_processing():
         # inicializamos la camara para capturar imagenes
         self.cap = simplecamera.start_camera()
 
-    def findCenter(self, img, low_thresh, high_thresh):
-        #metodo que localiza un objeto de un color dado dentro del threshold y calcula su centro geometrico y su area
-        # obtenemos una mascara que solo abarque los objetos del color de interes
-        mask = segmentate(img, low_thresh, high_thresh)
-        
-        # aplicamos metodos morfologicos para limpiar la mascara
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
-
-        # Obtenemos los contornos de cada objeto visible en la mascara
-        (cnts ,_) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-        
-        # Seleccionamos el contorno de mayor area como el contorno que seguira nuestro robot
-        # es decir, en caso de encontrar varios objetos de color, seguira al mas grande
-        if cnts: 
-            max_area=0
-            cnt_max=cnts[0]
-            for cnt in cnts:
-                area = cv2.contourArea(cnt)
-                if max_area<area:
-                    max_area=area
-                    cnt_max=cnt
-            cnt=cnt_max
-            cnt_area=max_area
-        else:
-            return -1, -1
-
-        #finalmente calculamos los momentos, sabiendo que el momento 10 entre el 00 nos da el centro
-        #geometrico de la figura en el eje horizontal
-        M = cv2.moments(cnt)
-
-        try:
-            cX = int(M["m10"] / M["m00"])
-        except ZeroDivisionError:
-            cX = -1
-
-        return cX, cnt_area
-
     def process_data(self):
-        #metodo que lee la imagen cada 0.2s, procesa las posiciones de los objetos y las publica en un topic
+        #metodo que lee la imagen cada 0.1s, procesa las posiciones de los objetos y las publica en un topic
         rate=rospy.Rate(10)
 
         #variable que cuenta cuantos frames han fallado de forma sucesiva, de modo que si fallan 20 frames seguidos se cierre el programa y se libere el handler de la camara
@@ -235,6 +185,55 @@ class image_processing():
             
         # cuando el bucle se termine, es decir, cuando se cierre ros o haya ocurrido algun error, se liberara el handler de la camara
         self.cap.release()
+        
+    def findCenter(self, img, low_thresh, high_thresh):
+        #metodo que localiza un objeto de un color dado dentro del threshold y calcula su centro geometrico y su area
+        # obtenemos una mascara que solo abarque los objetos del color de interes
+        mask = self.segmentate(img, low_thresh, high_thresh)
+        
+        # aplicamos metodos morfologicos para limpiar la mascara
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
+
+        # Obtenemos los contornos de cada objeto visible en la mascara
+        (cnts ,_) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+        
+        # Seleccionamos el contorno de mayor area como el contorno que seguira nuestro robot
+        # es decir, en caso de encontrar varios objetos de color, seguira al mas grande
+        if cnts: 
+            max_area=0
+            cnt_max=cnts[0]
+            for cnt in cnts:
+                area = cv2.contourArea(cnt)
+                if max_area<area:
+                    max_area=area
+                    cnt_max=cnt
+            cnt=cnt_max
+            cnt_area=max_area
+        else:
+            return -1, -1
+
+        #finalmente calculamos los momentos, sabiendo que el momento 10 entre el 00 nos da el centro
+        #geometrico de la figura en el eje horizontal
+        M = cv2.moments(cnt)
+
+        try:
+            cX = int(M["m10"] / M["m00"])
+        except ZeroDivisionError:
+            cX = -1
+
+        return cX, cnt_area
+        
+        # funcion para segmentar imagenes en casos en los que los thresholds tienen que partirse en dos
+    def segmentate(hsv,lower_hsv,higher_hsv):
+        if higher_hsv[0] > 179:
+            mask1 = cv2.inRange(hsv,lower_hsv,np.array([179, higher_hsv[1], higher_hsv[2]]))
+            mask2 = cv2.inRange(hsv,np.array([0, lower_hsv[1], lower_hsv[2]]),np.array([higher_hsv[0]-179, higher_hsv[1], higher_hsv[2]]))
+            mask = cv2.bitwise_or(mask1,mask2)
+        else:
+            mask = cv2.inRange(hsv,lower_hsv,higher_hsv)
+
+        return mask
 
 
 if __name__ == "__main__":

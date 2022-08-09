@@ -1,16 +1,7 @@
-# MIT License
-# Copyright (c) 2019 JetsonHacks
-# See license
-# Using a CSI camera (such as the Raspberry Pi Version 2) connected to a
-# NVIDIA Jetson Nano Developer Kit using OpenCV
-# Drivers for the camera and OpenCV are included in the base image
-
 import cv2
 
 # gstreamer_pipeline returns a GStreamer pipeline for capturing from the CSI camera
-# Defaults to 1280x720 @ 60fps
-# Flip the image by setting the flip_method (most common values: 0 and 2)
-# display_width and display_height determine the size of the window on the screen
+# Defaults to 320x240 @ 30fps
 
 
 def gstreamer_pipeline(capture_width=320, capture_height=240, framerate=30, pre_proc=True):

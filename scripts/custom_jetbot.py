@@ -17,7 +17,7 @@ class Motor():
         else:
             self._ina = 2
             self._inb = 3
-        atexit.register(self.release)
+        atexit.register(self._release)
         
     def calibrate(self, alpha, beta, gamma):
         self.alpha = alpha
@@ -29,6 +29,7 @@ class Motor():
         """ primero comprobamos que el valor sea mayor que el coef de seguridad gamma.
         Si es menor, la velocidad sera 0.
         Si es mayor, la velocidad se calculara segun los valores de la calibraci0n"""
+        value = - value
         if abs(value) < self.gamma:
             mapped_value = 0
         elif value > 0:
@@ -47,7 +48,7 @@ class Motor():
             self._driver._pwm.setPWM(self._ina,0,speed*16)
             self._driver._pwm.setPWM(self._inb,0,0)
 
-    def release(self):
+    def _release(self):
         """Stops motor by releasing control"""
         self._motor.run(Adafruit_MotorHAT.RELEASE)
         self._driver._pwm.setPWM(self._ina,0,0)
@@ -89,3 +90,7 @@ class Robot():
         
     def calibrate_right(self, alpha, beta, gamma):
         self.right_motor.calibrate(alpha, beta, gamma)
+    
+    def calibrate_motors(self, calibrationl, calibrationr):
+        self.calibrate_left(calibrationl[0], calibrationl[1],calibrationl[2])
+        self.calibrate_right(calibrationr[0], calibrationr[1],calibrationr[2])
