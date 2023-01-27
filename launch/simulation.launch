@@ -59,6 +59,8 @@
         <rosparam param="area_mid">1000.0</rosparam>
         <rosparam param="area_near">3000.0</rosparam>
         <rosparam param="area_margin">750.0</rosparam>
+        <rosparam param="camera_width">352</rosparam>
+        <rosparam param="sim">True</rosparam>
   </node>
 
 </launch>

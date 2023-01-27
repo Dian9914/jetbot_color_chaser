@@ -3,7 +3,7 @@
 # acerca de los objetos encontrados
 
 #importamos mensajes
-from jetbot_color_chaser.msg import camera_data, color_pose
+from jetbot_color_chaser.msg import camera_data
 from sensor_msgs.msg import Image
 
 import rospy
@@ -17,9 +17,10 @@ import json
 # time para controlar el tiempo de procesamiento de imagen
 import time
 
-# libreria personal para manejar la picam instalada en el jetbot
+# libreria para manejar la camara instalada en el jetbot
 import simplecamera
 
+# funcion para segmentar imagenes en casos en los que los thresholds tienen que partirse en dos
 def segmentate(hsv,lower_hsv,higher_hsv):
     if higher_hsv[0] > 179:
         mask1 = cv2.inRange(hsv,lower_hsv,np.array([179, higher_hsv[1], higher_hsv[2]]))
@@ -34,7 +35,7 @@ class image_processing():
     def __init__(self):
 
         rospy.loginfo('IMAGE_NODE: Reading config file.')
-        # leemos el archivo de configuracion para los thresholds
+        # ---lectura del archivo de configuracion---
         with open('/home/jetbot/catkin_ws/src/jetbot_color_chaser/config/parameters.json', 'r') as f:
             data=json.load(f)
         rospy.loginfo('IMAGE_NODE: Config file successfully read.')
@@ -47,18 +48,22 @@ class image_processing():
         self.low_thresh_green = np.array(data['green']['lower_hsv'])
         self.high_thresh_green = np.array(data['green']['higher_hsv'])
 
-        #obtenemos parametros de ROS, que se definen en el fichero launch
+        #---obtencion de parametros de ROS, definidos en el fichero launch---
         #flag que define si se aplicara un postprocesamiento a la imagen capturada
         self.post_proc = rospy.get_param('~post_proc',default=False)
-        #flag que define si se mostrara informacion por pantalla sobre el programa
+        #flag que define si se muestra informacion por pantalla sobre el programa
         self.enable_verbose = rospy.get_param('~enable_verbose', default=True)
+        #flag que define si se publica la imagen procesada en un topic
+        self.enable_vis = rospy.get_param('~enable_visualization', default=True)
 
-        #inicializacion de los publishers de ROS
+        #---inicializacion de los publishers de ROS---
         #publica la imagen en un topic para permitir visualizar el resultado del procesamiento en programas como rviz
-        self.img_pub=rospy.Publisher('/jetbot/cv_image',Image, queue_size=10)
+        if self.enable_vis:
+            self.img_pub=rospy.Publisher('/jetbot/cv_image',Image, queue_size=10)   
         #publica la informacion extraida de la imagen
         self.data_pub=rospy.Publisher('/jetbot/camera_data',camera_data, queue_size=10)
 
+        #---iniciacion de variables y objetos---
         #inicializacion de la variable donde guardamos la informacion extraida de la imagen, que publicaremos en el topic "camera_data"
         self.procesed_data = camera_data()
 
@@ -160,25 +165,26 @@ class image_processing():
             
             
             # a continuacion se construye la imagen que se publicara para obtener una visualizacion del resultado del procesamiento de la imagen. Esta nueva imagen marcara los objetos detectados para cada color
-            img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
-            height = img.shape[0]
-            mid_img = int(round(height/2))
-            #anhadimos informacion al frame actual para publicarlo
-            if c_r>=0:
-                img = cv2.circle(img, (c_r,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
-                img = cv2.circle(img, (c_r,mid_img), radius=3, color=(255, 0, 0), thickness=-1)
+            if self.enable_vis:
+                img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+                height = img.shape[0]
+                mid_img = int(round(height/2))
+                #anhadimos informacion al frame actual para publicarlo
+                if c_r>=0:
+                    img = cv2.circle(img, (c_r,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
+                    img = cv2.circle(img, (c_r,mid_img), radius=3, color=(255, 0, 0), thickness=-1)
 
-            if c_g>=0: 
-                img = cv2.circle(img, (c_g,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
-                img = cv2.circle(img, (c_g,mid_img), radius=3, color=(0, 255, 0), thickness=-1)
+                if c_g>=0: 
+                    img = cv2.circle(img, (c_g,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
+                    img = cv2.circle(img, (c_g,mid_img), radius=3, color=(0, 255, 0), thickness=-1)
 
-            if c_b>=0: 
-                img = cv2.circle(img, (c_b,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
-                img = cv2.circle(img, (c_b,mid_img), radius=3, color=(0, 0, 255), thickness=-1)
+                if c_b>=0: 
+                    img = cv2.circle(img, (c_b,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
+                    img = cv2.circle(img, (c_b,mid_img), radius=3, color=(0, 0, 255), thickness=-1)
 
-            # se construye el mensaje usando cvbridge y se publica al topic
-            image_message = self.bridge.cv2_to_imgmsg(img, encoding="rgb8")
-            self.img_pub.publish(image_message)
+                # se construye el mensaje usando cvbridge y se publica al topic
+                image_message = self.bridge.cv2_to_imgmsg(img, encoding="rgb8")
+                self.img_pub.publish(image_message)
 
             #si el verbose esta activado, imprimira un resumen de lo obtenido y el tiempo que se tardo en obtener la informacion
             if self.enable_verbose:

@@ -4,8 +4,8 @@
   <!-- Arrancar el nodo de lectura de imagen -->
   <node pkg="jetbot_color_chaser" type="image_node.py" name="image" output="screen" >
         <rosparam param="enable_verbose">True</rosparam>
+        <rosparam param="enable_visualization">False</rosparam>
         <rosparam param="post_proc">False</rosparam>
-        <rosparam param="config"></rosparam>
   </node>
 
   <!-- Arrancar el nodo de actuacion sobre los motores -->
@@ -22,6 +22,7 @@
         <rosparam param="area_near">3000.0</rosparam>
         <rosparam param="area_margin">750.0</rosparam>
         <rosparam param="camera_width">320.0</rosparam>
+        <rosparam param="sim">False</rosparam>
   </node>
 
     <!-- Arrancar rviz con las opciones adecuadas -->

@@ -6,6 +6,7 @@
 from time import sleep
 import rospy
 from math import floor
+import json
 
 #importamos los mensajes
 from jetbot_color_chaser.msg import camera_data, velocity_cmd
@@ -15,6 +16,9 @@ from jetbot_color_chaser.srv import chase_conf, start_srv
 
 class central_node():
     def __init__(self):
+        # parametro que nos indica si estamos en simulacion o no
+        self.sim_mode = rospy.get_param('~sim', default=False)
+
         # parametros de seguimiento 
         self.max_lin = rospy.get_param('~max_lin_vel', default=1)    #velocidad lineal maxima a la que se persiguen objetos
         self.max_ang = rospy.get_param('~max_ang_vel', default=1)      #velocidad angular maxima a la que se persiguen objetos
@@ -24,18 +28,24 @@ class central_node():
         self.control_flag = False
         
         #umbrales para la construccion del mapa
-        with open('/home/jetbot/catkin_ws/src/jetbot_color_chaser/config/parameters.json', 'r') as f:
-            data=json.load(f)
-        rospy.loginfo('IMAGE_NODE: Config file successfully read.')
+        if self.sim_mode:
+            self.area_umb0=rospy.get_param('~area_far', default=200)  #numero de pixeles que ocupa el objeto cuando esta lejos
+            self.area_umb1=rospy.get_param('~area_mid', default=1000) #numero de pixeles que ocupa el objeto cuando esta a media distancia
+            self.area_umb2=rospy.get_param('~area_near', default=3000) #numero de pixeles que ocupa el objeto cuando esta cerca
+        else:
+            with open('/home/jetbot/catkin_ws/src/jetbot_color_chaser/config/parameters.json', 'r') as f:
+                data=json.load(f)
+            rospy.loginfo('IMAGE_NODE: Config file successfully read.')
+            self.area_umb0=data["far_area"] #numero de pixeles que ocupa el objeto cuando esta lejos
+            self.area_umb1=data["mid_area"] #numero de pixeles que ocupa el objeto cuando esta a media distancia
+            self.area_umb2=data["near_area"] #numero de pixeles que ocupa el objeto cuando esta cerca
+        
         self.theta_umb4=rospy.get_param('~camera_width',default=256)
         self.theta_umb0=round(self.theta_umb4/5)
         self.theta_umb1=self.theta_umb0*2
         self.theta_umb2=self.theta_umb0*3
         self.theta_umb3=self.theta_umb0*4
-        self.area_umb0=data["far_area"] #numero de pixeles que ocupa el objeto cuando esta lejos
-        self.area_umb1=data["mid_area"] #numero de pixeles que ocupa el objeto cuando esta a media distancia
-        self.area_umb2=data["near_area"] #numero de pixeles que ocupa el objeto cuando esta cerca
-        
+
         #margen que le damos a la zona en la que consideramos "aceptable" el obstaculo
         self.control_margin=rospy.get_param('~area_margin',default=2000)
 
