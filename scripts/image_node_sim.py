@@ -40,6 +40,12 @@ class image_processing():
         self.low_thresh_blue = np.array([55*1.8, 150, 150])
         self.high_thresh_blue = np.array([70*1.8, 255, 255])
 
+        #definicion de los umbrales para calcular la distancia al objetivo
+        self.area_umb0=rospy.get_param('~area_far', default=20)  #numero de pixeles que ocupa el objeto cuando esta lejos
+        self.area_umb1=rospy.get_param('~area_mid', default=100) #numero de pixeles que ocupa el objeto cuando esta a media distancia
+        self.area_umb2=rospy.get_param('~area_near', default=400) #numero de pixeles que ocupa el objeto cuando esta cerca
+        
+
         # kernel a usar en los metodos morfologicos
         self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
 
@@ -125,17 +131,48 @@ class image_processing():
             (c_g,area_g)=self.findCenter(img,self.low_thresh_green,self.high_thresh_green)
             #azul
             (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)
-            
+
+            #finalmente calculamos a que distancia esta el objeto de la camara, usando una escala del 0 (cerca) al 3 (lejos)
+            #empezamos con el rojo
+            if area_r < self.area_umb0:
+                dis_r = 3
+            elif area_r >= self.area_umb0 and area_r < self.area_umb1:
+                dis_r = 2
+            elif area_r >= self.area_umb1 and area_r < self.area_umb2:
+                dis_r = 1
+            elif area_r >= self.area_umb2:
+                dis_r = 0
+            # verde
+            if area_g < self.area_umb0:
+                dis_g = 3
+            elif area_g >= self.area_umb0 and area_g < self.area_umb1:
+                dis_g = 2
+            elif area_g >= self.area_umb1 and area_g < self.area_umb2:
+                dis_g = 1
+            elif area_g >= self.area_umb2:
+                dis_g = 0
+            #azul
+            if area_b < self.area_umb0:
+                dis_b = 3
+            elif area_b >= self.area_umb0 and area_b < self.area_umb1:
+                dis_b = 2
+            elif area_b >= self.area_umb1 and area_b < self.area_umb2:
+                dis_b = 1
+            elif area_r >= self.area_umb2:
+                dis_r = 0
 
             #una vez se tienen los datos de los objetos, construimos el mensaje que se comunicara al central node y lo publicamos
             # primero se crea el mensaje que se enviara por el topic /jetbot/camera_data, del tipo camera_data(), un tipo personalizado
             procesed_data = camera_data()
             procesed_data.red.center=int(c_r)
             procesed_data.red.area=int(area_r)
+            procesed_data.red.distance=int(dis_r)
             procesed_data.green.center=int(c_g)
             procesed_data.green.area=int(area_g)
+            procesed_data.green.distance=int(dis_g)
             procesed_data.blue.center=int(c_b)
             procesed_data.blue.area=int(area_b)
+            procesed_data.blue.distance=int(dis_b)
             self.data_pub.publish(procesed_data)
             
             
@@ -165,9 +202,9 @@ class image_processing():
             time_elapsed=end-start
             #si el verbose esta activado, imprimira un resumen de lo obtenido
             if self.enable_verbose:
-                print('IMAGE_NODE: Red location data:\t center: %d \t area: %d'%(c_r,area_r))
-                print('IMAGE_NODE: Green location data:\t center: %d \t area: %d'%(c_g,area_g))
-                print('IMAGE_NODE: Blue location data:\t center: %d \t area: %d'%(c_b,area_b))
+                print('IMAGE_NODE: Red data:\t center: %d \t area: %d \t distance: %d'%(c_r,area_r,dis_r))
+                print('IMAGE_NODE: Green data:\t center: %d \t area: %d \t distance: %d'%(c_g,area_g,dis_g))
+                print('IMAGE_NODE: Blue data:\t center: %d \t area: %d \t distance: %d'%(c_b,area_b,dis_b))
                 print('IMAGE_NODE: Elapsed time: %f'%time_elapsed)
             rate.sleep()
 

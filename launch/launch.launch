@@ -3,9 +3,12 @@
   <arg name="config" default= "$(find jetbot_color_chaser)/config/parameters.json" />
   <!-- Arrancar el nodo de lectura de imagen -->
   <node pkg="jetbot_color_chaser" type="image_node.py" name="image" output="screen" >
-        <rosparam param="enable_verbose">True</rosparam>
+        <rosparam param="enable_verbose">False</rosparam>
         <rosparam param="enable_visualization">False</rosparam>
         <rosparam param="post_proc">False</rosparam>
+        <rosparam param="area_far">20.0</rosparam>
+        <rosparam param="area_mid">100.0</rosparam>
+        <rosparam param="area_near">500.0</rosparam>
   </node>
 
   <!-- Arrancar el nodo de actuacion sobre los motores -->
@@ -17,11 +20,9 @@
   <node pkg="jetbot_color_chaser" type="central_node_v2.py" name="central" output="screen" >
         <rosparam param="max_lin_vel">2.0</rosparam>
         <rosparam param="max_ang_vel">2.0</rosparam>
-        <rosparam param="area_far">200.0</rosparam>
-        <rosparam param="area_mid">1000.0</rosparam>
-        <rosparam param="area_near">3000.0</rosparam>
+        <rosparam param="area_ref">3000.0</rosparam>
         <rosparam param="area_margin">750.0</rosparam>
-        <rosparam param="camera_width">320.0</rosparam>
+        <rosparam param="camera_width">352.0</rosparam>
         <rosparam param="sim">False</rosparam>
   </node>
 

@@ -64,9 +64,6 @@ class image_processing():
         self.data_pub=rospy.Publisher('/jetbot/camera_data',camera_data, queue_size=10)
 
         #---iniciacion de variables y objetos---
-        #inicializacion de la variable donde guardamos la informacion extraida de la imagen, que publicaremos en el topic "camera_data"
-        self.procesed_data = camera_data()
-
         # kernel a usar en los metodos morfologicos
         self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
 
@@ -153,15 +150,48 @@ class image_processing():
             (c_g,area_g)=self.findCenter(img,self.low_thresh_green,self.high_thresh_green)
             (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)
             
+            #finalmente calculamos a que distancia esta el objeto de la camara, usando una escala del 1 (cerca) al 3 (lejos)
+            #empezamos con el rojo
+            if area_r < self.area_umb0:
+                dis_r = 3
+            elif area_r >= self.area_umb0 and area_r < self.area_umb1:
+                dis_r = 2
+            elif area_r >= self.area_umb1 and area_r < self.area_umb2:
+                dis_r = 1
+            elif area_r >= self.area_umb2:
+                dis_r = 0
+            # verde
+            if area_g < self.area_umb0:
+                dis_g = 3
+            elif area_g >= self.area_umb0 and area_g < self.area_umb1:
+                dis_g = 2
+            elif area_g >= self.area_umb1 and area_g < self.area_umb2:
+                dis_g = 1
+            elif area_g >= self.area_umb2:
+                dis_g = 0
+            #azul
+            if area_b < self.area_umb0:
+                dis_b = 3
+            elif area_b >= self.area_umb0 and area_b < self.area_umb1:
+                dis_b = 2
+            elif area_b >= self.area_umb1 and area_b < self.area_umb2:
+                dis_b = 1
+            elif area_b >= self.area_umb2:
+                dis_b = 0
 
-            #construimos el mensaje que se comunicara al central node y lo publicamos
-            self.procesed_data.red.center=int(c_r)
-            self.procesed_data.red.area=int(area_r)
-            self.procesed_data.green.center=int(c_g)
-            self.procesed_data.green.area=int(area_g)
-            self.procesed_data.blue.center=int(c_b)
-            self.procesed_data.blue.area=int(area_b)
-            self.data_pub.publish(self.procesed_data)
+            #una vez se tienen los datos de los objetos, construimos el mensaje que se comunicara al central node y lo publicamos
+            # primero se crea el mensaje que se enviara por el topic /jetbot/camera_data, del tipo camera_data(), un tipo personalizado
+            procesed_data = camera_data()
+            procesed_data.red.center=int(c_r)
+            procesed_data.red.area=int(area_r)
+            procesed_data.red.distance=int(dis_r)
+            procesed_data.green.center=int(c_g)
+            procesed_data.green.area=int(area_g)
+            procesed_data.green.distance=int(dis_g)
+            procesed_data.blue.center=int(c_b)
+            procesed_data.blue.area=int(area_b)
+            procesed_data.blue.distance=int(dis_b)
+            self.data_pub.publish(procesed_data)
             
             
             # a continuacion se construye la imagen que se publicara para obtener una visualizacion del resultado del procesamiento de la imagen. Esta nueva imagen marcara los objetos detectados para cada color
