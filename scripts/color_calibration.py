@@ -14,7 +14,7 @@ import simplecamera
 # funcion para leer los argumentos que se le dan por consola a python
 def parse_args():
     parser = argparse.ArgumentParser(description='Useful script used to calibrate the color detection.')
-    parser.add_argument('--mode', default= 'opencv', help ='Switch between "jetbot" mode or "opencv" mode to access the camera.')
+    parser.add_argument('--mode', default= 'jetbot', help ='Switch between "jetbot" mode or "opencv" mode to access the camera.')
     parser.add_argument('--out_dir', default='./config/', help='Directory to save the output')
     parser.add_argument('--post_proc', default=False, help='Post process the image ussing filters. This is deprecated because the pipeline already preprocess the image.')
     args = parser.parse_args()
@@ -23,8 +23,8 @@ def parse_args():
 
 def segmentate(hsv,lower_hsv,higher_hsv):
     if higher_hsv[0] > 179:
-        mask1 = cv2.inRange(hsv,lower_hsv,np.array([179, higher_hsv[1], higher_hsv[2]]))
-        mask2 = cv2.inRange(hsv,np.array([0, lower_hsv[1], lower_hsv[2]]),np.array([higher_hsv[0]-179, higher_hsv[1], higher_hsv[2]]))
+        mask1 = cv2.inRange(hsv,np.array(lower_hsv, dtype=np.int64),np.array([int(179), int(higher_hsv[1]), int(higher_hsv[2])]))
+        mask2 = cv2.inRange(hsv,np.array([int(0), int(lower_hsv[1]), int(lower_hsv[2])]),np.array([int(higher_hsv[0]-179), int(higher_hsv[1]), int(higher_hsv[2])]))
         mask = cv2.bitwise_or(mask1,mask2)
     else:
         mask = cv2.inRange(hsv,lower_hsv,higher_hsv)
@@ -98,7 +98,7 @@ def main():
         re, img = cap.read()
         if not re:
             print('Error with image capture.')
-            continue
+            break
 
 
         #obtenemos los umbrales de segmentacion. Para ello se pueden usar dos metodos: modificar las trackbars a mano o 
@@ -112,7 +112,7 @@ def main():
             print(hsv[mouseY,mouseX])
             click_values = hsv[mouseY,mouseX]
             print(click_values)
-            if click_values[0] < 50: click_values[0]=179 + click_values[0]
+            if click_values[0] < 50: click_values[0]=180 + click_values[0]
             print(click_values[0])
 
             hsv_values.append(click_values)
