@@ -47,6 +47,8 @@ class centralNode():
 
         # bandera para indicar cuando queremos que el control actue
         self.control_flag = False
+        # bandera para indicar que el target se ha perdido. asumimos que no empezamos viendo el target
+        self.target_lost = True
         
     def processData(self, data):
         #primero leemos la informacion referente al color que deseamos seguir y la procesamos para enviar la senial de control
@@ -148,12 +150,15 @@ class centralNode():
 
         # si hemos perdido de vista al objetivo, consultamos la ultima localizacion conocida y buscamos por ahi
         if target_theta==-1 and self.target_theta_ant!=-1:
+            self.target_lost = True
             if self.target_theta_ant < (self.umb4_theta / 2):
                 target_theta= - self.umb0_theta/2
             else:
                 target_theta= self.umb4_theta + self.umb0_theta/2
             target_dist=3
             target_area=1
+        else:
+            self.target_lost = False
 
         #primero registramos la posicion de nuestro objetivo en el mapa local.
         # los parametros theta se discretizan definiendo unos umbrales segun la definicion de la camara,
@@ -224,16 +229,23 @@ class centralNode():
                             tray=col
                     break
 
+            # si el target esta perdido, el giro debe ser lento, por lo que limitamos las trayectorias
+            if self.target_lost:    
+                if tray < 3: tray = 2
+                else: tray = 4
 
             # a partir de la posicion del mapa indicada por el planificador, obtenemos la posicion a la que hemos de girar
             ref_vel_ang=self.umb0_theta*tray - self.umb0_theta/2
 
+            
+
+            
 
             if (map[0][3]==1) and (map[0][4]==1) and (map[0][2]==1):
                 #si tenemos un obstaculo bloqueandonos completamente, nos paramos mientras seguimos girando en busca del objetivo
                 ref_vel_lin=0
-            elif tray<2 or tray>4:
-                #si un obstaculo nos obliga a girar, el giro se hara a menor velocidad
+            elif tray<2 or tray>4 or self.target_lost:
+                #si un obstaculo nos obliga a girar o el target esta perdido, el movimiento se hara a menor velocidad
                 ref_vel_lin=obs_area
             else:
                 #si la via esta libre, seguimos avanzando hacia el objetivo
@@ -251,23 +263,25 @@ class centralNode():
         # si el objeto esta a una distancia dentro de un cierto rango, el robot se para.
         if ref_vel_lin >= self.ref_area-self.ref_margin and ref_vel_lin <= self.ref_area+self.ref_margin or ref_vel_lin==0:
             lin_vel=0
-            print('Objetivo cerca o bloqueado')
+            if self.verbose: print('CENTRAL_NODE: Objetivo cerca o bloqueado')
         else:
-            lin_vel=((self.ref_area-ref_vel_lin)/ref_vel_lin)
-            print('objetivo lejos')
+            lin_vel=((self.ref_area-
+            )/ref_vel_lin)
+            if self.verbose: print('CENTRAL_NODE: Objetivo lejos')
 
         # si el objetivo esta, de forma aproximada, en el centro de nuestra vision, no giramos.
         if abs(err_pos)<10:
-            print('objetivo centrado')
+            if self.verbose: print('CENTRAL_NODE: Trayectoria recta')
             ang_vel=0
         elif err_pos>0:
-            print('objetivo a la izquierda')
+            if self.verbose: print('CENTRAL_NODE: Trayectoria a la izquierda')
             ang_vel=err_pos/(self.umb4_theta/2)*self.max_ang
         elif err_pos<0:
-            print('objetivo a la derecha')
+            if self.verbose: print('CENTRAL_NODE: Trayectoria a la derecha')
             ang_vel=err_pos/(self.umb4_theta/2)*self.max_ang
 
         if self.verbose:
+            print("CENTRAL_NODE: Mapa generado:")
             print(map[3])
             print(map[2])
             print(map[1])
