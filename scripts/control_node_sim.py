@@ -14,6 +14,7 @@ class controller():
     def __init__(self):
         # leyemos parametros del .launch
         self.max_vel=rospy.get_param('~max_wheel_vel',default=1)
+        self.verbose=rospy.get_param('~verbose',default=False)
         # nos suscribimos al topic que ordenara la velocidad, programando un callback para manejar las ordenes entrantes
         self.img_sub=rospy.Subscriber('/jetbot/cmd_vel', velocity_cmd, self.process_cmd)
         # creamos los publishers e inicializamos los mensajes
@@ -27,6 +28,9 @@ class controller():
         vel_d = data.lineal + data.angular/2
         vel_i = data.lineal - data.angular/2 
         
+        if self.verbose: 
+            print("CONTROL NODE: Left wheel speed: %1.1f\t Right wheel speed: %1.1f" % (max(-self.max_vel,min(vel_d,self.max_vel)), max(-self.max_vel,min(vel_i,self.max_vel))))
+
         #publicamos la accion debidamente saturada
         self.pub_vel_d.publish(max(-self.max_vel,min(vel_d,self.max_vel)))
         self.pub_vel_i.publish(max(-self.max_vel,min(vel_i,self.max_vel)))

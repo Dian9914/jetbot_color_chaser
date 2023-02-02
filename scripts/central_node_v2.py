@@ -204,8 +204,8 @@ class centralNode():
         map[t_y][t_x]=2 #marcamos el objetivo en el mapa
 
         # decidimos el camino a seguir
-        if (obs_theta==-1) or (obs_area < target_area):
-            #si no se encuentran obstaculos en el camino o el objetivo esta mas creca, directaemente seguimos al objetivo, sin necesidad de llamar al planificador
+        if (obs_theta==-1) or (obs_dist >= target_dist):
+            #si no se encuentran obstaculos en el camino o el objetivo no esta bloqueado por obstaculos directamente, directaemente seguimos al objetivo, sin necesidad de llamar al planificador
             ref_vel_ang=target_theta
             ref_vel_lin=target_area
         else:
@@ -235,7 +235,7 @@ class centralNode():
                 else: tray = 4
 
             # a partir de la posicion del mapa indicada por el planificador, obtenemos la posicion a la que hemos de girar
-            ref_vel_ang=self.umb0_theta*tray - self.umb0_theta/2
+            ref_vel_ang=self.umb0_theta*(tray-0.5)
 
             
 
@@ -252,7 +252,7 @@ class centralNode():
                 ref_vel_lin=target_area
                 
         # el error en posicion se calcula teniendo en cuenta que el robot debe mover el centro de su vision a donde la referencia le marca
-        err_pos=(self.umb4_theta/2)-ref_vel_ang
+        err_theta=(self.umb4_theta/2)-ref_vel_ang
 
         # finalmente almacenamos los valores obtenidos del objetivo para usarlos en la siguiente iteracion
         self.target_theta_ant=target_theta
@@ -265,20 +265,19 @@ class centralNode():
             lin_vel=0
             if self.verbose: print('CENTRAL_NODE: Objetivo cerca o bloqueado')
         else:
-            lin_vel=((self.ref_area-
-            )/ref_vel_lin)
+            lin_vel=((self.ref_area-ref_vel_lin)/ref_vel_lin)
             if self.verbose: print('CENTRAL_NODE: Objetivo lejos')
 
         # si el objetivo esta, de forma aproximada, en el centro de nuestra vision, no giramos.
-        if abs(err_pos)<10:
+        if abs(err_theta)<10:
             if self.verbose: print('CENTRAL_NODE: Trayectoria recta')
             ang_vel=0
-        elif err_pos>0:
-            if self.verbose: print('CENTRAL_NODE: Trayectoria a la izquierda')
-            ang_vel=err_pos/(self.umb4_theta/2)*self.max_ang
-        elif err_pos<0:
-            if self.verbose: print('CENTRAL_NODE: Trayectoria a la derecha')
-            ang_vel=err_pos/(self.umb4_theta/2)*self.max_ang
+        elif err_theta>0:
+            ang_vel=err_theta/(self.umb4_theta/2)*self.max_ang
+            if self.verbose: print('CENTRAL_NODE: Trayectoria a la izquierda',ang_vel)
+        elif err_theta<0:
+            ang_vel=err_theta/(self.umb4_theta/2)*self.max_ang
+            if self.verbose: print('CENTRAL_NODE: Trayectoria a la derecha',ang_vel)
 
         if self.verbose:
             print("CENTRAL_NODE: Mapa generado:")
