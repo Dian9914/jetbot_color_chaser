@@ -1,0 +1,13 @@
+<launch>
+  <!-- arranca todos los nodos del sistema -->
+
+  <!-- Arrancar el nodo de actuacion sobre los motores -->
+  <node pkg="jetbot_color_chaser" type="control_node.py" name="control" output="screen" >
+        <rosparam param="max_wheel_vel">2.0</rosparam>
+  </node>
+  
+  <!-- Arrancar el nodo de teleoperacion -->
+  <node pkg="jetbot_color_chaser" type="teleoperation.py" name="teleop" output="screen" >
+  </node>
+
+</launch>

@@ -12,8 +12,8 @@ from jetbot_color_chaser.msg import camera_data, velocity_cmd
 
 # funcion para leer los argumentos que se le dan por consola a python
 def parse_args():
-    parser = argparse.ArgumentParser(description='Useful script used to calibrate the color detection.')
-    parser.add_argument('--control', default= 'gamepad', help ='Switch between "gamepad" or "keyboard" for the teleoperation control.')
+    parser = argparse.ArgumentParser(description='Node used for gamepad teleoperation')
+    parser.add_argument('--control', default= 'gamepad', help ='Switch between "gamepad" or "keyboard" for the teleoperation control. Deprecated.')
     args = parser.parse_args()
     return args
 
