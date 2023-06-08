@@ -36,6 +36,12 @@ class image_processing():
         self.low_thresh_green = np.array(data['green']['lower_hsv'])
         self.high_thresh_green = np.array(data['green']['higher_hsv'])
 
+        #definicion de los umbrales para calcular la distancia al objetivo
+        self.area_umb0=data['far_area'] #numero de pixeles que ocupa el objeto cuando esta lejos
+        self.area_umb1=data['mid_area'] #numero de pixeles que ocupa el objeto cuando esta a media distancia
+        self.area_umb2=data['near_area'] #numero de pixeles que ocupa el objeto cuando esta cerca
+        print(data)
+
         #---obtencion de parametros de ROS, definidos en el fichero launch---
         #flag que define si se aplicara un postprocesamiento a la imagen capturada
         self.post_proc = rospy.get_param('~post_proc',default=False)
@@ -168,10 +174,9 @@ class image_processing():
 
             #si el verbose esta activado, imprimira un resumen de lo obtenido y el tiempo que se tardo en obtener la informacion
             if self.enable_verbose:
-                #imprimimos la informacion extraida de la imagen
-                print('IMAGE_NODE: Red location data:\t center: %d \t area: %d'%(c_r,area_r))
-                print('IMAGE_NODE: Green location data:\t center: %d \t area: %d'%(c_g,area_g))
-                print('IMAGE_NODE: Blue location data:\t center: %d \t area: %d'%(c_b,area_b))
+                print('IMAGE_NODE: Red data:\t center: %d \t area: %d \t distance: %d'%(c_r,area_r,dis_r))
+                print('IMAGE_NODE: Green data:\t center: %d \t area: %d \t distance: %d'%(c_g,area_g,dis_g))
+                print('IMAGE_NODE: Blue data:\t center: %d \t area: %d \t distance: %d'%(c_b,area_b,dis_b))
                 #calculamos e imprimimos el tiempo empleado en el procesamiento
                 end=time.time()
                 time_elapsed=end-start
@@ -225,7 +230,7 @@ class image_processing():
         return cX, cnt_area
         
         # funcion para segmentar imagenes en casos en los que los thresholds tienen que partirse en dos
-    def segmentate(hsv,lower_hsv,higher_hsv):
+    def segmentate(self,hsv,lower_hsv,higher_hsv):
         if higher_hsv[0] > 179:
             mask1 = cv2.inRange(hsv,lower_hsv,np.array([179, higher_hsv[1], higher_hsv[2]]))
             mask2 = cv2.inRange(hsv,np.array([0, lower_hsv[1], lower_hsv[2]]),np.array([higher_hsv[0]-179, higher_hsv[1], higher_hsv[2]]))

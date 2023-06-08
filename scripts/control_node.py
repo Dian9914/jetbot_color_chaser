@@ -16,6 +16,7 @@ class controller():
     def __init__(self):
         # leyemos parametros del .launch
         self.max_vel=rospy.get_param('~max_wheel_vel',default=1)
+        self.verbose=rospy.get_param('~verbose',default=True)
         # nos suscribimos al topic que ordenara la velocidad, programando un callback para manejar las ordenes entrantes
         self.img_sub=rospy.Subscriber('/jetbot/cmd_vel', velocity_cmd, self.process_cmd)
         # creamos un objeto tipo robot para manejar el jetbot
@@ -27,8 +28,12 @@ class controller():
         vel_i = data.lineal - data.angular/2 
         
         #actuamos sobre el robot, saturando la señal antes
-        vel_i = max(-self.max_vel,min(vel_d,self.max_vel))
-        vel_d = max(-self.max_vel,min(vel_i,self.max_vel))
+        vel_d = max(-self.max_vel,min(vel_d,self.max_vel))
+        vel_i = max(-self.max_vel,min(vel_i,self.max_vel))
+        
+        if self.verbose: 
+            print("CONTROL NODE: Left wheel speed: %1.1f\t Right wheel speed: %1.1f" % (vel_i, vel_d))
+            
         self.robot.set_motors(vel_i,vel_d)
 
 if __name__ == "__main__":

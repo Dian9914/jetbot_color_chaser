@@ -1,0 +1,15 @@
+<launch>
+  <!-- arranca todos los nodos del sistema -->
+  <arg name="config" default= "$(find jetbot_color_chaser)/config/parameters.json" />
+  <!-- Arrancar el nodo de lectura de imagen -->
+  <node pkg="jetbot_color_chaser" type="image_node.py" name="image" output="screen" >
+        <rosparam param="enable_verbose">True</rosparam>
+        <rosparam param="enable_visualization">True</rosparam>
+        <rosparam param="post_proc">False</rosparam>
+  </node>
+
+    <!-- Arrancar rviz con las opciones adecuadas -->
+  <arg name="cfg_rviz" default= "$(find jetbot_color_chaser)/config/jetbot_rviz.rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg cfg_rviz)" output="screen"/>
+
+</launch>

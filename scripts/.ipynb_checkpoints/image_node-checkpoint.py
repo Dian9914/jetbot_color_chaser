@@ -3,7 +3,7 @@
 # acerca de los objetos encontrados
 
 #importamos mensajes
-from diff_chaser.msg import camera_data, color_pose
+from jetbot_color_chaser.msg import camera_data
 from sensor_msgs.msg import Image
 
 import rospy
@@ -12,48 +12,189 @@ import rospy
 import cv2
 import numpy as np 
 from cv_bridge import CvBridge
+import json
 
 # time para controlar el tiempo de procesamiento de imagen
 import time
 
-# libreria personal para manejar la picam instalada en el jetbot
+# libreria para manejar la camara instalada en el jetbot
 import simplecamera
 
 class image_processing():
     def __init__(self):
-        #definicion de los thresholds para la deteccion de colores
-        self.low_thresh_red = np.array([0, 0, 0])
-        self.high_thresh_red = np.array([0, 0, 0])
-        self.low_thresh_blue = np.array([100, 110, 110])
-        self.high_thresh_blue = np.array([120, 255, 255])
-        self.low_thresh_green = np.array([0, 0, 0])
-        self.high_thresh_green = np.array([0, 0, 0])
+        rospy.loginfo('IMAGE_NODE: Reading config file.')
+        # ---lectura del archivo de configuracion---
+        with open('/home/jetbot/catkin_ws/src/jetbot_color_chaser/config/parameters.json', 'r') as f:
+            data=json.load(f)
+        rospy.loginfo('IMAGE_NODE: Config file successfully read.')
         
+        #definicion de los thresholds para la deteccion de colores
+        self.low_thresh_red = np.array(data['red']['lower_hsv'])
+        self.high_thresh_red = np.array(data['red']['higher_hsv'])
+        self.low_thresh_blue = np.array(data['blue']['lower_hsv'])
+        self.high_thresh_blue = np.array(data['blue']['higher_hsv'])
+        self.low_thresh_green = np.array(data['green']['lower_hsv'])
+        self.high_thresh_green = np.array(data['green']['higher_hsv'])
+
+        #definicion de los umbrales para calcular la distancia al objetivo
+        self.area_umb0=data['far_area'] #numero de pixeles que ocupa el objeto cuando esta lejos
+        self.area_umb1=data['mid_area'] #numero de pixeles que ocupa el objeto cuando esta a media distancia
+        self.area_umb2=data['near_area'] #numero de pixeles que ocupa el objeto cuando esta cerca
+        print(data)
+
+        #---obtencion de parametros de ROS, definidos en el fichero launch---
+        #flag que define si se aplicara un postprocesamiento a la imagen capturada
+        self.post_proc = rospy.get_param('~post_proc',default=False)
+        #flag que define si se muestra informacion por pantalla sobre el programa
+        self.enable_verbose = rospy.get_param('~enable_verbose', default=True)
+        #flag que define si se publica la imagen procesada en un topic
+        self.enable_vis = rospy.get_param('~enable_visualization', default=True)
+
+        #---inicializacion de los publishers de ROS---
+        #publica la imagen en un topic para permitir visualizar el resultado del procesamiento en programas como rviz
+        if self.enable_vis:
+            self.img_pub=rospy.Publisher('/jetbot/cv_image',Image, queue_size=10)   
+        #publica la informacion extraida de la imagen
+        self.data_pub=rospy.Publisher('/jetbot/camera_data',camera_data, queue_size=10)
+
+        #---iniciacion de variables y objetos---
         # kernel a usar en los metodos morfologicos
-        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(7,7))
+        self.kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(3,3))
 
         # objeto para poder convertir los mensajes image de ROS a un array 
         # legible por opencv
         self.bridge = CvBridge()
         
-        # inicializamos la camara
+        # inicializamos la camara para capturar imagenes
         self.cap = simplecamera.start_camera()
 
-        # fragmento de codigo que lee el rosparam "enable_verbose", que se pasara en el fichero .launch
-        if rospy.has_param('~enable_verbose'):
-            self.enable_verbose = rospy.get_param('~enable_verbose')
-        else:
-            self.enable_verbose = True
+    def process_data(self):
+        #metodo que lee la imagen cada 0.1s, procesa las posiciones de los objetos y las publica en un topic
+        rate=rospy.Rate(10)
 
-        self.img_pub=rospy.Publisher('/robot/cv_image',Image, queue_size=10)
-        self.data_pub=rospy.Publisher('/diff/camera_data',camera_data, queue_size=10)
+        #variable que cuenta cuantos frames han fallado de forma sucesiva, de modo que si fallan 20 frames seguidos se cierre el programa y se libere el handler de la camara
+        fail_counter = 0
 
-        self.procesed_data = camera_data()
+        #asumimos que el el handle de la camara se ha creado sin problemas, por lo que comenzamos a procesar la imagen
+        rospy.loginfo('IMAGE_NODE: Started publishing data.')
+        while not rospy.is_shutdown():
+            #primero leemos la imagen
+            re, img = self.cap.read()
+            
+            #si la lectura de imagen falla, imprimimos un error y esperamos al siguiente ciclo
+            if not re:
+                fail_counter = fail_counter + 1
+                if fail_counter>=20: break
+                rospy.logerror('IMAGE_NODE: Error getting image')
+                rate.sleep()
+                continue
+            fail_counter = 0
+                
+            #usamos time para controlar el tiempo que se tarda entre ejecuciones de codigo, solo si el verbose esta activo
+            if self.enable_verbose: start=time.time()
+            
+            
+            # si esta activado el post-procesado de la imagen, hemos de filtrarla a fin de eliminar el ruido en la medida de lo posible.
+            # Utilizamos un filtro de medianas
+            if self.post_proc: img=cv2.medianBlur(img,3)
 
+            # a continuacion buscamos objetos de los 3 colores que queremos tratar en este sistema.
+            # usaremos el espacio de color HSV para el thresholding
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            # se usa el metodo findcenter para procesar cada color de forma individual
+            (c_r,area_r)=self.findCenter(img,self.low_thresh_red,self.high_thresh_red)
+            (c_g,area_g)=self.findCenter(img,self.low_thresh_green,self.high_thresh_green)
+            (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)
+            
+            #finalmente calculamos a que distancia esta el objeto de la camara, usando una escala del 1 (cerca) al 3 (lejos)
+            #empezamos con el rojo
+            if area_r < self.area_umb0:
+                dis_r = 3
+            elif area_r >= self.area_umb0 and area_r < self.area_umb1:
+                dis_r = 2
+            elif area_r >= self.area_umb1 and area_r < self.area_umb2:
+                dis_r = 1
+            elif area_r >= self.area_umb2:
+                dis_r = 0
+            # verde
+            if area_g < self.area_umb0:
+                dis_g = 3
+            elif area_g >= self.area_umb0 and area_g < self.area_umb1:
+                dis_g = 2
+            elif area_g >= self.area_umb1 and area_g < self.area_umb2:
+                dis_g = 1
+            elif area_g >= self.area_umb2:
+                dis_g = 0
+            #azul
+            if area_b < self.area_umb0:
+                dis_b = 3
+            elif area_b >= self.area_umb0 and area_b < self.area_umb1:
+                dis_b = 2
+            elif area_b >= self.area_umb1 and area_b < self.area_umb2:
+                dis_b = 1
+            elif area_b >= self.area_umb2:
+                dis_b = 0
+
+            #una vez se tienen los datos de los objetos, construimos el mensaje que se comunicara al central node y lo publicamos
+            # primero se crea el mensaje que se enviara por el topic /jetbot/camera_data, del tipo camera_data(), un tipo personalizado
+            procesed_data = camera_data()
+            procesed_data.red.center=int(c_r)
+            procesed_data.red.area=int(area_r)
+            procesed_data.red.distance=int(dis_r)
+            procesed_data.green.center=int(c_g)
+            procesed_data.green.area=int(area_g)
+            procesed_data.green.distance=int(dis_g)
+            procesed_data.blue.center=int(c_b)
+            procesed_data.blue.area=int(area_b)
+            procesed_data.blue.distance=int(dis_b)
+            self.data_pub.publish(procesed_data)
+            
+            
+            # a continuacion se construye la imagen que se publicara para obtener una visualizacion del resultado del procesamiento de la imagen. Esta nueva imagen marcara los objetos detectados para cada color
+            if self.enable_vis:
+                img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+                height = img.shape[0]
+                mid_img = int(round(height/2))
+                #anhadimos informacion al frame actual para publicarlo
+                if c_r>=0:
+                    img = cv2.circle(img, (c_r,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
+                    img = cv2.circle(img, (c_r,mid_img), radius=3, color=(255, 0, 0), thickness=-1)
+
+                if c_g>=0: 
+                    img = cv2.circle(img, (c_g,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
+                    img = cv2.circle(img, (c_g,mid_img), radius=3, color=(0, 255, 0), thickness=-1)
+
+                if c_b>=0: 
+                    img = cv2.circle(img, (c_b,mid_img), radius=5, color=(255, 255, 255), thickness=-1)
+                    img = cv2.circle(img, (c_b,mid_img), radius=3, color=(0, 0, 255), thickness=-1)
+
+                # se construye el mensaje usando cvbridge y se publica al topic
+                image_message = self.bridge.cv2_to_imgmsg(img, encoding="rgb8")
+                self.img_pub.publish(image_message)
+
+            #si el verbose esta activado, imprimira un resumen de lo obtenido y el tiempo que se tardo en obtener la informacion
+            if self.enable_verbose:
+                print('IMAGE_NODE: Red data:\t center: %d \t area: %d \t distance: %d'%(c_r,area_r,dis_r))
+                print('IMAGE_NODE: Green data:\t center: %d \t area: %d \t distance: %d'%(c_g,area_g,dis_g))
+                print('IMAGE_NODE: Blue data:\t center: %d \t area: %d \t distance: %d'%(c_b,area_b,dis_b))
+                #calculamos e imprimimos el tiempo empleado en el procesamiento
+                end=time.time()
+                time_elapsed=end-start
+                print('IMAGE_NODE: Elapsed time: %f'%time_elapsed)
+
+            
+            #finalmente, suspendemos el codigo con sleep. Como indicamos al objeto rate que deseabamos
+            #5Hz, se intentara mantener dormido durante el tiempo necesario para mantener la frecuencia
+            rate.sleep()
+
+            
+        # cuando el bucle se termine, es decir, cuando se cierre ros o haya ocurrido algun error, se liberara el handler de la camara
+        self.cap.release()
+        
     def findCenter(self, img, low_thresh, high_thresh):
         #metodo que localiza un objeto de un color dado dentro del threshold y calcula su centro geometrico y su area
         # obtenemos una mascara que solo abarque los objetos del color de interes
-        mask = cv2.inRange(img, low_thresh, high_thresh)
+        mask = self.segmentate(img, low_thresh, high_thresh)
         
         # aplicamos metodos morfologicos para limpiar la mascara
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel)
@@ -87,79 +228,17 @@ class image_processing():
             cX = -1
 
         return cX, cnt_area
+        
+        # funcion para segmentar imagenes en casos en los que los thresholds tienen que partirse en dos
+    def segmentate(self,hsv,lower_hsv,higher_hsv):
+        if higher_hsv[0] > 179:
+            mask1 = cv2.inRange(hsv,lower_hsv,np.array([179, higher_hsv[1], higher_hsv[2]]))
+            mask2 = cv2.inRange(hsv,np.array([0, lower_hsv[1], lower_hsv[2]]),np.array([higher_hsv[0]-179, higher_hsv[1], higher_hsv[2]]))
+            mask = cv2.bitwise_or(mask1,mask2)
+        else:
+            mask = cv2.inRange(hsv,lower_hsv,higher_hsv)
 
-    def process_data(self):
-        #metodo que lee la imagen cada 0.2s, procesa las posiciones de los objetos y las publica en un topic
-        rate=rospy.Rate(5)
-
-        #una vez tenemos senial, empezamos a publicar la informacion tratada
-        rospy.loginfo('IMAGE_NODE: Started publishing data.')
-        while not rospy.is_shutdown():
-            #primero leemos la imagen
-            re, img = self.cap.read()
-            
-            #si la lectura de imagen falla, imprimimos un error y esperamos al siguiente ciclo
-            if not re:
-                rospy.logerror('IMAGE_NODE: Error getting image')
-                rate.sleep()
-                continue
-                
-            #usamos time para controlar el tiempo que se tarda entre ejecuciones de codigo
-            start=time.time()
-            
-            # primero hemos de filtrar la imagen para eliminar ruido en la medida de lo posible.
-            # Utilizamos un filtro de medianas
-            img=cv2.medianBlur(img,5)
-            #buscamos objetos de los 3 colores que queremos tratar en este sistema.
-            # usaremos HSV para el thresholding
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            # esta imagen filtrada pasa a ser procesada para cada color
-            (c_r,area_r)=self.findCenter(img,self.low_thresh_red,self.high_thresh_red)
-            (c_g,area_g)=self.findCenter(img,self.low_thresh_green,self.high_thresh_green)
-            (c_b,area_b)=self.findCenter(img,self.low_thresh_blue,self.high_thresh_blue)
-            
-
-            #si el verbose esta activado, imprimira un resumen de lo obtenido
-            if self.enable_verbose:
-                print('RED:\t center: %d \t area: %d'%(c_r,area_r))
-                print('GREEN:\t center: %d \t area: %d'%(c_g,area_g))
-                print('BLUE:\t center: %d \t area: %d'%(c_b,area_b))
-
-            #construimos el mensaje que se comunicara al central node y lo publicamos
-            self.procesed_data.red.center=int(c_r)
-            self.procesed_data.red.area=int(area_r)
-            self.procesed_data.green.center=int(c_g)
-            self.procesed_data.green.area=int(area_g)
-            self.procesed_data.blue.center=int(c_b)
-            self.procesed_data.blue.area=int(area_b)
-            self.data_pub.publish(self.procesed_data)
-            
-            img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
-
-            #anhadimos informacion al frame actual para publicarlo
-            if c_r>=0:
-                img = cv2.circle(img, (c_r,128/2), radius=5, color=(255, 255, 255), thickness=-1)
-                img = cv2.circle(img, (c_r,128/2), radius=3, color=(255, 0, 0), thickness=-1)
-
-            if c_g>=0: 
-                img = cv2.circle(img, (c_g,128/2), radius=5, color=(255, 255, 255), thickness=-1)
-                img = cv2.circle(img, (c_g,128/2), radius=3, color=(0, 255, 0), thickness=-1)
-
-            if c_b>=0: 
-                img = cv2.circle(img, (c_b,128/2), radius=5, color=(255, 255, 255), thickness=-1)
-                img = cv2.circle(img, (c_b,128/2), radius=3, color=(0, 0, 255), thickness=-1)
-
-            image_message = self.bridge.cv2_to_imgmsg(img, encoding="rgb8")
-            self.img_pub.publish(image_message)
-
-            #finalmente, suspendemos el codigo con sleep. Como indicamos al objeto rate que deseabamos
-            #5Hz, se intentara mantener dormido durante el tiempo necesario para mantener la frecuencia
-	    #finalmente calculamos el tiempo empleado
-            end=time.time()
-            time_elapsed=end-start
-            print('Elapsed time: %f'%time_elapsed)
-            print('----------------')
-            rate.sleep()
+        return mask
 
 
 if __name__ == "__main__":

@@ -40,7 +40,6 @@ def gstreamer_pipeline(capture_width=320, capture_height=240, framerate=30, pre_
 
         
 def start_camera(capture_width=320, capture_height=240, framerate=30, pre_proc=True):
-    # handle.release()
     handle = cv2.VideoCapture(gstreamer_pipeline(capture_width=capture_width, capture_height=capture_height, framerate=framerate, pre_proc=pre_proc), cv2.CAP_GSTREAMER)
     return handle
 

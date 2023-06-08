@@ -30,7 +30,7 @@ class Motor():
         Si es menor, la velocidad sera 0.
         Si es mayor, la velocidad se calculara segun los valores de la calibraci0n"""
         value = - value
-        if abs(value) < self.gamma:
+        if abs(value) < self.gamma or value == 0:
             mapped_value = 0
         elif value > 0:
             mapped_value = int(255.0 * (self.alpha * value + self.beta))
@@ -58,8 +58,8 @@ class Motor():
 class Robot():   
     def __init__(self):
         self.motor_driver = Adafruit_MotorHAT(i2c_bus=1)
-        self.left_motor = Motor(self.motor_driver, channel=1, alpha=0.76, beta=0.25, gamma=0.02)
-        self.right_motor = Motor(self.motor_driver, channel=2, alpha=0.75, beta=0.26, gamma=0.02)
+        self.left_motor = Motor(self.motor_driver, channel=1, alpha=0.71, beta=0.29, gamma=0)
+        self.right_motor = Motor(self.motor_driver, channel=2, alpha=0.68, beta=0.28, gamma=0)
         
     def set_motors(self, left_speed, right_speed):
         self.left_motor.write_speed(left_speed)
